@@ -3,6 +3,7 @@ import { BarList, Radar, Sparkline } from '../components/charts';
 import { Divider, InfoDot, Label, Panel, PanelHead, ProvenanceTag, Segmented, Stat, Table, Td, Th, TeamMark } from '../components/ui';
 import { COACHES, COACH_BY_TEAM } from '../data/coaches';
 import { TEAM_BY_ID } from '../data/teams';
+import { DERIVED } from '../engine/model';
 import type { Coach } from '../data/types';
 import { CATEGORICAL, pct, signed, teamInk } from '../lib/viz';
 import { useStore } from '../state/store';
@@ -333,6 +334,7 @@ function CoachProfile({ coach }: { coach: Coach }) {
   const mode = state.theme;
   const outlook = season.teams[coach.teamId];
   const seasonWins = coach.seasons.map((s) => s.wins);
+  const coachingValue = DERIVED[coach.teamId].components.coaching;
 
   return (
     <Panel className="overflow-hidden">
@@ -375,7 +377,7 @@ function CoachProfile({ coach }: { coach: Coach }) {
           { l: `At ${team.abbr}`, v: coach.atSchool.wins + coach.atSchool.losses === 0 ? '—' : `${coach.atSchool.wins}–${coach.atSchool.losses}`, s: `Year ${coach.tenureYear}` },
           { l: 'Versus ranked', v: coach.vsRanked ? `${coach.vsRanked.wins}–${coach.vsRanked.losses}` : '—', s: 'AP Top 25 opponents' },
           { l: 'Versus top ten', v: coach.vsTop10 ? `${coach.vsTop10.wins}–${coach.vsTop10.losses}` : '—', s: 'The hardest games' },
-          { l: 'Coaching value', v: signed(team.components.coaching), s: 'points of team rating', tone: team.components.coaching >= 0 ? ('positive' as const) : ('negative' as const) },
+          { l: 'Coaching value', v: signed(coachingValue), s: 'derived points of team rating', tone: coachingValue >= 0 ? ('positive' as const) : ('negative' as const) },
           { l: 'Volatility', v: `${coach.volatility.toFixed(2)}×`, s: 'game-to-game variance' },
           { l: '2026 projection', v: `${outlook.meanWins.toFixed(1)}–${(12 - outlook.meanWins).toFixed(1)}`, s: `${pct(outlook.pChampion, 1)} to win the SEC` },
         ].map((x) => (

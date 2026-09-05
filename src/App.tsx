@@ -13,6 +13,7 @@ import { CoachIntel } from './views/CoachIntel';
 import { ScenarioStudio } from './views/ScenarioStudio';
 import { Methodology } from './views/Methodology';
 import { HowItWorks } from './views/HowItWorks';
+import { ModelLab } from './views/ModelLab';
 
 const NAV: { id: ViewId; label: string; icon: typeof IconGauge; hint: string }[] = [
   { id: 'command', label: 'Command Center', icon: IconGauge, hint: 'League overview' },
@@ -21,6 +22,7 @@ const NAV: { id: ViewId; label: string; icon: typeof IconGauge; hint: string }[]
   { id: 'matchup', label: 'Matchup', icon: IconSwords, hint: 'Head-to-head' },
   { id: 'coach', label: 'Coach Intel', icon: IconClipboard, hint: 'Staff tendencies' },
   { id: 'scenario', label: 'Scenario Studio', icon: IconSliders, hint: 'What-if planning' },
+  { id: 'model', label: 'Model Lab', icon: IconGauge, hint: 'Tune the coefficients' },
   { id: 'how', label: 'How this works', icon: IconSpark, hint: 'The model, explained' },
   { id: 'method', label: 'Methodology', icon: IconBook, hint: 'Constants and sources' },
 ];
@@ -32,6 +34,7 @@ const TITLES: Record<ViewId, { title: string; blurb: string }> = {
   matchup: { title: 'Matchup Simulator', blurb: 'Any two teams, simulated drive by drive' },
   coach: { title: 'Coach Intelligence', blurb: 'The part of a program that survives roster turnover' },
   scenario: { title: 'Scenario Studio', blurb: 'Change an assumption and watch the season move' },
+  model: { title: 'Model Lab', blurb: 'Twelve coefficients, checked against rankings the model was never fitted to' },
   how: { title: 'How this works', blurb: 'The projection engine and the design, explained end to end' },
   method: { title: 'Methodology', blurb: 'Every constant, every source, every limitation' },
 };
@@ -222,6 +225,7 @@ export default function App() {
             {view === 'matchup' && <MatchupLab />}
             {view === 'coach' && <CoachIntel />}
             {view === 'scenario' && <ScenarioStudio />}
+            {view === 'model' && <ModelLab />}
             {view === 'how' && <HowItWorks />}
             {view === 'method' && <Methodology />}
           </div>

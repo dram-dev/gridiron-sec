@@ -5,6 +5,7 @@ import { PLAYER_BY_ID } from '../data/players';
 import { ALL_GAMES } from '../data/schedule';
 import { GAME_SIGMA, LEAGUE_PPG, TEAM_SIGMA } from '../engine/constants';
 import { normalCdf } from '../engine/rng';
+import { externalAgreement, spearmanVsSpPlus } from '../engine/model';
 import { CATEGORICAL, DIVERGING, SEQUENTIAL, pct, signed } from '../lib/viz';
 import { useStore } from '../state/store';
 
@@ -28,11 +29,11 @@ const SECTIONS = [
   { id: 'players', part: 'one', n: '4', title: 'What a player is worth' },
   { id: 'limits', part: 'one', n: '5', title: 'What it will not tell you' },
   { id: 'brief', part: 'two', n: '6', title: 'Two jobs, one product' },
-  { id: 'crimson', part: 'two', n: '7', title: 'The colour I got wrong' },
+  { id: 'crimson', part: 'two', n: '7', title: 'Why charts avoid team colours' },
   { id: 'ramps', part: 'two', n: '8', title: 'Testing instead of eyeballing' },
   { id: 'marks', part: 'two', n: '9', title: 'One chart spec, everywhere' },
   { id: 'type', part: 'two', n: '10', title: 'Type, numbers and themes' },
-  { id: 'next', part: 'two', n: '11', title: 'What I would change' },
+  { id: 'next', part: 'two', n: '11', title: 'Where the model is weakest' },
 ];
 
 export function HowItWorks() {
@@ -78,6 +79,7 @@ export function HowItWorks() {
   };
   const sdIndependent = sd(independent);
   const sdModel = sd(outlook.regularWinDistribution);
+  const spearman = useMemo(() => spearmanVsSpPlus(externalAgreement()), []);
 
   return (
     <div className="hiw">
@@ -96,8 +98,8 @@ export function HowItWorks() {
           follows it end to end.
         </p>
         <p className="mt-4 text-[16.5px] leading-[1.65]" style={{ color: 'var(--text)' }}>
-          The second half is about the design: how the thing is built to be read, and the one
-          decision I got wrong on the first pass.
+          The second half is about the design: how a dense analytical surface is built to be read
+          at a glance, and the constraints this particular subject imposes on it.
         </p>
         <div className="mt-7 flex flex-wrap gap-2">
           <a href="#ratings" className="btn !py-1.5">Start with the engine ↓</a>
@@ -171,11 +173,41 @@ export function HowItWorks() {
 
             <Prose>
               <ComponentList />
+              <p className="hiw-sub">None of those seven is written down</p>
               <p>
-                Keeping them apart is the point. A single number cannot be argued with. If you think
-                Georgia's continuity credit is too generous, you can see that it is{' '}
-                <Num>{signed(ugaTeam.components.returningProduction)}</Num> and say so — and the
-                Scenario Studio lets you move it and watch what happens.
+                This is the part that decides whether any of the above is a model or a costume. No
+                team carries a rating constant. Each of the seven components is computed from that
+                team's observations — last season's per-play efficiency, the value of the roster on
+                hand, returning production, recruiting talent, the portal cycle, the coaching record
+                — by <Num>twelve</Num> coefficients applied identically to all sixteen teams.
+              </p>
+              <p>
+                A coefficient is a rate, not a verdict: points per standard deviation of an
+                observation, or a weight between two competing sources of evidence. There is no
+                place in the system to type “Georgia, 26 points”. Georgia's{' '}
+                <Num>{uga.total.toFixed(1)}</Num> is what falls out.
+              </p>
+              <p>
+                That has a practical consequence, not just an honest one. With authored components,
+                changing an input did nothing, because the answer had been written down separately.
+                Here an input change propagates and a coefficient change re-rates the entire league,
+                which is what the{' '}
+                <button className="hiw-link" onClick={() => go('model')}>Model Lab</button>{' '}
+                exists to let you do.
+              </p>
+              <p className="hiw-sub">And it agrees with a model it never saw</p>
+              <p>
+                Building from inputs makes an external check possible. The published SP+ preseason
+                ratings are produced by an entirely independent method, and nothing here is fitted
+                to them. The two conference orderings correlate at{' '}
+                <Num>{spearman.toFixed(3)}</Num> across the thirteen SEC teams SP+ ranks.
+              </p>
+              <p>
+                That is not a backtest — no result is being scored — and it does not make the model
+                right. What it rules out is the model being arbitrary: a derivation built from
+                these observations lands, unprompted, close to where a serious independent system
+                lands. Where the two disagree, the Model Lab names the team and the component
+                responsible.
               </p>
             </Prose>
           </Section>
@@ -393,22 +425,23 @@ export function HowItWorks() {
           </Section>
 
           {/* ---- 7 ---- */}
-          <Section id="crimson" n="7" title="The colour I got wrong">
+          <Section id="crimson" n="7" title="Why charts avoid team colours">
             <Prose>
               <p>
-                The first version of the matchup histogram coloured each side in its own team
-                colour: Georgia's bars in Georgia red, Alabama's in Alabama crimson. It seemed
-                obviously right. It was obviously wrong.
+                Colouring each side of a chart in its own team colour is the obvious move, and in
+                this conference it does not work. Alabama, Georgia, Arkansas, South Carolina,
+                Mississippi State and Oklahoma all wear a version of crimson. Half the league is
+                the same hue.
               </p>
             </Prose>
 
             <Figure
               wide
-              caption="The same chart twice. On the left, two teams encoded in their own colours. On the right, the validated categorical pair. Only one of these can be read."
+              caption="Georgia against Alabama, encoded two ways. On the left, each side in its own team colour. On the right, the validated categorical pair. Only one of these can be read."
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <CrimsonDemo
-                  title="What I built first"
+                  title="Team colours"
                   bad
                   left={ugaTeam.primary}
                   right={alaTeam.primary}
@@ -416,7 +449,7 @@ export function HowItWorks() {
                   rightLabel={`Alabama ${alaTeam.primary}`}
                 />
                 <CrimsonDemo
-                  title="What shipped"
+                  title="Validated pair"
                   left={CATEGORICAL[mode][0]}
                   right={CATEGORICAL[mode][1]}
                   leftLabel={`Slot 1 ${CATEGORICAL[mode][0]}`}
@@ -429,16 +462,13 @@ export function HowItWorks() {
               <p>
                 Those are two different colours. They are not two <em>distinguishable</em> colours,
                 and under the most common form of colour-vision deficiency they are closer still.
-                It is not a quirk of this pairing either: Alabama, Georgia, Arkansas, South
-                Carolina, Mississippi State and Oklahoma all wear a version of crimson. Half the
-                conference is the same hue.
               </p>
               <p>
-                So team colours stopped carrying data. They still appear everywhere — as the swatch
-                beside a school's name, the stripe on a team header, the accent on a card — because
-                that is identity, and identity is reinforced by the name sitting right next to it.
-                But when colour has to encode <em>which series is which</em>, the chart uses a
-                palette that was actually tested.
+                So team colours do not carry data anywhere in the app. They appear constantly — as
+                the swatch beside a school's name, the stripe on a team header, the accent on a
+                card — because that is identity, and identity is reinforced by the name sitting
+                next to it. But when colour has to encode <em>which series is which</em>, the chart
+                uses a tested palette instead.
               </p>
             </Prose>
           </Section>
@@ -447,18 +477,18 @@ export function HowItWorks() {
           <Section id="ramps" n="8" title="Testing instead of eyeballing">
             <Prose>
               <p>
-                The lesson from that mistake was not “pick better colours”, it was “stop deciding
-                this by eye”. Every ramp in the app was run through a validator against both chart
-                backgrounds, checking five things: that the steps sit in a usable lightness band,
+                Colour separation is measurable, so it is measured rather than judged by eye. Every
+                ramp in the app was run through a validator against both chart backgrounds,
+                checking five things: that the steps sit in a usable lightness band,
                 that they carry enough chroma to read as colours at all, that neighbouring pairs
                 stay apart under simulated colour-vision deficiency, that they stay apart under
                 normal vision, and that each one clears contrast against the surface it sits on.
               </p>
               <p>
-                Two ramps failed the first pass. The diverging pair sat above the dark band and had
-                to be stepped down; the sequential ramp's pale end could not clear contrast against
-                white and had to start darker. Both were re-stepped until they passed rather than
-                talked into being acceptable.
+                The constraint bites: a diverging pair that reads well on a light background sits
+                too bright for a dark one, and a sequential ramp's pale end cannot clear contrast
+                against white. Both ramps are stepped separately per background for exactly that
+                reason.
               </p>
             </Prose>
 
@@ -528,32 +558,35 @@ export function HowItWorks() {
           </Section>
 
           {/* ---- 11 ---- */}
-          <Section id="next" n="11" title="What I would change">
+          <Section id="next" n="11" title="Where the model is weakest">
             <Prose>
               <p>
-                Four things, in the order I would do them.
+                Four places where the model is thinner than it looks, in rough order of how much
+                they cost the forecast.
               </p>
               <ol className="hiw-numbered">
                 <li>
-                  <strong>Derive the efficiency profiles from play-by-play.</strong> They are
-                  currently calibrated estimates that reproduce known ratings and last season's
-                  results. Coherent, and clearly labelled as estimates — but not measured.
+                  <strong>The observations are estimates, not measurements.</strong> The structure
+                  above them is real — twelve coefficients, no per-team constants — but per-play
+                  efficiency profiles and player grades are analyst estimates rather than figures
+                  derived from play-by-play. A sound model on soft inputs is still soft. This is
+                  the single biggest limitation in the system, and every affected record is flagged
+                  in the interface.
                 </li>
                 <li>
-                  <strong>Replace the playoff heuristic with a real selection model.</strong> Every
-                  other number in the app derives from the ratings. That one is a logistic on losses
-                  and rating, because the committee is not a formula. It should simulate the whole
-                  national field instead.
+                  <strong>The playoff figure is a heuristic.</strong> Every other number derives
+                  from the ratings. That one is a logistic on losses and rating, because the
+                  selection committee is not a formula. A real version would simulate the whole
+                  national field.
                 </li>
                 <li>
-                  <strong>Widen roster coverage.</strong> {Object.keys(PLAYER_BY_ID).length} players
-                  are tracked — the contributors who move a projection, not full two-deeps. An
-                  injury to an untracked player is invisible to the model.
+                  <strong>Roster coverage stops at the contributors.</strong>{' '}
+                  {Object.keys(PLAYER_BY_ID).length} players are tracked, not full two-deeps, so an
+                  injury below that line is invisible to the model.
                 </li>
                 <li>
-                  <strong>Make it update.</strong> This is a snapshot. Results, injuries and
-                  depth-chart moves do not flow in; the Scenario Studio exists so you can impose them
-                  by hand, which is a workaround, not an answer.
+                  <strong>Nothing updates in-season on its own.</strong> Results and depth-chart
+                  moves do not flow in automatically; they have to be entered.
                 </li>
               </ol>
             </Prose>

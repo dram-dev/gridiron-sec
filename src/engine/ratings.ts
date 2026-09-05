@@ -3,6 +3,7 @@ import { POSITION_SIDE, ROSTERS } from '../data/players';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
 import type { RatingComponents, Team, TeamId } from '../data/types';
 import { LEAGUE_PLAYS } from './constants';
+import { DERIVED, deriveAll, type Derived } from './model';
 import { teamOverride, type Scenario } from './scenario';
 
 /* ============================================================================
@@ -92,10 +93,15 @@ function rawTotals(c: RatingComponents) {
   return { offense, defense, specialTeams: c.specialTeams };
 }
 
-export function rateTeam(teamId: TeamId, scenario: Scenario): TeamRating {
+export function rateTeam(
+  teamId: TeamId,
+  scenario: Scenario,
+  derived?: Record<TeamId, Derived>,
+): TeamRating {
   const team = TEAM_BY_ID[teamId];
   const coach = COACH_BY_TEAM[teamId];
-  const c = team.components;
+  // Components are derived from the team's observations, not stored on it.
+  const c = (derived ?? DERIVED)[teamId].components;
   const base = rawTotals(c);
   const baselineTotal = base.offense + base.defense + base.specialTeams;
 
@@ -145,8 +151,11 @@ export function rateTeam(teamId: TeamId, scenario: Scenario): TeamRating {
 export type RatingTable = Record<TeamId, TeamRating>;
 
 export function rateAll(scenario: Scenario): RatingTable {
+  // Derive once per call: the whole league is standardised together, so this
+  // cannot be done a team at a time.
+  const derived = deriveAll(scenario.coefficients);
   const out = {} as RatingTable;
-  for (const t of TEAMS) out[t.id] = rateTeam(t.id, scenario);
+  for (const t of TEAMS) out[t.id] = rateTeam(t.id, scenario, derived);
   return out;
 }
 

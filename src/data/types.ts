@@ -85,6 +85,9 @@ export interface EfficiencyProfile {
  * A team's rating is the sum of these parts, in points per game above an
  * average FBS team on a neutral field. Keeping them separate is what makes the
  * projection explainable — and what lets scenarios move one lever at a time.
+ *
+ * These are produced by engine/model.ts from the observations on Team; no team
+ * carries them as data.
  */
 export interface RatingComponents {
   /** Returning offensive unit strength, opponent- and talent-adjusted. */
@@ -162,7 +165,6 @@ export interface Team {
   joined: number;
   record2025: SeasonRecord;
   efficiency: EfficiencyProfile;
-  components: RatingComponents;
   returning: ReturningProduction;
   talent: TalentProfile;
   /** Preseason poll and computer-rating anchors, for model-vs-market contrast. */

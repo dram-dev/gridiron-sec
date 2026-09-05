@@ -17,7 +17,7 @@ import type { TeamId } from '../data/types';
  * ========================================================================== */
 
 export type ViewId =
-  | 'command' | 'team' | 'player' | 'matchup' | 'coach' | 'scenario' | 'method' | 'how';
+  | 'command' | 'team' | 'player' | 'matchup' | 'coach' | 'scenario' | 'model' | 'method' | 'how';
 
 export const VIEW_SLUG: Record<ViewId, string> = {
   command: '',
@@ -27,6 +27,7 @@ export const VIEW_SLUG: Record<ViewId, string> = {
   matchup: 'matchup',
   coach: 'coach',
   scenario: 'scenario',
+  model: 'model',
   method: 'method',
 };
 

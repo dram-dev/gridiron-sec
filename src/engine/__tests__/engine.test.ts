@@ -10,6 +10,11 @@ import { simulateSeason, projectAllGames } from '../season';
 import { normalCdf, normalQuantile, makeRng, quantileSorted } from '../rng';
 import { projectPlayerGame, rosterValue, matchupMultiplier, scriptedPassRate } from '../players';
 import { TD_POINTS, FG_POINTS } from '../constants';
+import {
+  DEFAULT_COEFFICIENTS, DERIVED, deriveAll, coachIndex, rosterStrength,
+  projectedStarter, externalAgreement, spearmanVsSpPlus,
+} from '../model';
+import { COACH_BY_TEAM } from '../../data/coaches';
 
 const scenario = makeBaselineScenario();
 const ratings = rateAll(scenario);
@@ -147,9 +152,9 @@ describe('ratings', () => {
     }
   });
 
-  it('preserves the authored component sum', () => {
+  it('equals the sum of the derived components', () => {
     for (const t of TEAMS) {
-      const c = t.components;
+      const c = DERIVED[t.id].components;
       const sum = c.offense + c.defense + c.specialTeams + c.coaching + c.returningProduction + c.portalRecruiting + c.quarterback;
       expect(ratings[t.id].total, t.id).toBeCloseTo(sum, 6);
     }
@@ -200,6 +205,111 @@ describe('ratings', () => {
     s.players['uga-gunner-stockton'] = 'out';
     s.homeFieldMultiplier = 0;
     expect(scenarioEditCount(s)).toBe(2);
+  });
+});
+
+describe('the derivation', () => {
+  it('carries no per-team rating constants in the data', () => {
+    // The whole point of engine/model.ts. If a `components` field ever comes
+    // back onto Team, the model has regressed into a lookup table.
+    for (const t of TEAMS) {
+      expect(Object.keys(t), `${t.id} must not carry authored components`).not.toContain('components');
+    }
+  });
+
+  it('anchors the conference average on the coefficient', () => {
+    const totals = TEAMS.map((t) => ratings[t.id].total);
+    const mean = totals.reduce((a, b) => a + b, 0) / totals.length;
+    expect(mean).toBeCloseTo(DEFAULT_COEFFICIENTS.leagueAnchor, 6);
+  });
+
+  it('spans a plausible power-conference range', () => {
+    const totals = TEAMS.map((t) => ratings[t.id].total).sort((a, b) => b - a);
+    const spread = totals[0] - totals[totals.length - 1];
+    expect(spread).toBeGreaterThan(18);
+    expect(spread).toBeLessThan(34);
+  });
+
+  it('re-rates the whole league when a coefficient moves', () => {
+    const hotter = deriveAll({ ...DEFAULT_COEFFICIENTS, rosterScale: DEFAULT_COEFFICIENTS.rosterScale * 2 });
+    const changed = TEAMS.filter(
+      (t) => Math.abs(hotter[t.id].components.offense - DERIVED[t.id].components.offense) > 1e-9,
+    );
+    expect(changed.length).toBe(TEAMS.length);
+  });
+
+  it('is near order-invariant when every scale is multiplied together', () => {
+    const k = 1.7;
+    const scaled = deriveAll({
+      ...DEFAULT_COEFFICIENTS,
+      efficiencyScale: DEFAULT_COEFFICIENTS.efficiencyScale * k,
+      rosterScale: DEFAULT_COEFFICIENTS.rosterScale * k,
+      continuityScale: DEFAULT_COEFFICIENTS.continuityScale * k,
+      talentScale: DEFAULT_COEFFICIENTS.talentScale * k,
+      portalWeight: DEFAULT_COEFFICIENTS.portalWeight * k,
+      qbScale: DEFAULT_COEFFICIENTS.qbScale * k,
+      coachScale: DEFAULT_COEFFICIENTS.coachScale * k,
+    });
+    const sum = (d: typeof DERIVED, id: (typeof TEAMS)[number]['id']) => {
+      const c = d[id].components;
+      return c.offense + c.defense + c.specialTeams + c.coaching +
+        c.returningProduction + c.portalRecruiting + c.quarterback;
+    };
+    const order = (d: typeof DERIVED) =>
+      [...TEAMS].sort((a, b) => sum(d, b.id) - sum(d, a.id)).map((t) => t.id);
+
+    // Special teams enters in raw points and does not scale with the
+    // standardised terms, so a common multiplier can still flip genuine ties.
+    // The claim is near-invariance, not identity.
+    const a = order(DERIVED);
+    const b = order(scaled);
+    const rankA = Object.fromEntries(a.map((id, i) => [id, i + 1]));
+    const rankB = Object.fromEntries(b.map((id, i) => [id, i + 1]));
+    const n = a.length;
+    const d2 = a.reduce((acc, id) => acc + (rankA[id] - rankB[id]) ** 2, 0);
+    const rho = 1 - (6 * d2) / (n * (n * n - 1));
+    expect(rho).toBeGreaterThan(0.99);
+
+    // Any team that did move must have been within a point of its neighbour.
+    for (const id of a) {
+      if (rankA[id] === rankB[id]) continue;
+      const neighbour = a[Math.min(n - 1, Math.max(0, rankB[id] - 1))];
+      expect(Math.abs(sum(DERIVED, id) - sum(DERIVED, neighbour)), id).toBeLessThan(1);
+    }
+  });
+
+  it('excludes quarterbacks and specialists from roster strength', () => {
+    for (const t of TEAMS) {
+      const manual = ROSTERS[t.id]
+        .filter((p) => ['RB', 'WR', 'TE', 'OT', 'IOL'].includes(p.position))
+        .reduce((s, p) => s + p.par, 0);
+      expect(rosterStrength(ROSTERS[t.id], 'offense'), t.id).toBeCloseTo(manual, 9);
+    }
+  });
+
+  it('projects the highest-graded quarterback as the starter', () => {
+    for (const t of TEAMS) {
+      const starter = projectedStarter(ROSTERS[t.id])!;
+      const best = Math.max(...ROSTERS[t.id].filter((p) => p.position === 'QB').map((p) => p.grade));
+      expect(starter.grade, t.id).toBe(best);
+    }
+  });
+
+  it('gives a coach with no record no record-based signal', () => {
+    const stein = COACH_BY_TEAM.UK;
+    expect(stein.career.wins + stein.career.losses).toBe(0);
+    // Only the two tendency terms should contribute.
+    const expected =
+      0.3 * stein.tendencies.development + 0.2 * stein.tendencies.acquisition;
+    expect(coachIndex(stein, DEFAULT_COEFFICIENTS)).toBeCloseTo(expected, 9);
+  });
+
+  it('agrees closely with an independently published rating', () => {
+    // The model is built from inputs, never fitted to SP+, so this is a real
+    // external check rather than a restatement. A sharp drop here means the
+    // derivation has drifted.
+    const rho = spearmanVsSpPlus(externalAgreement());
+    expect(rho).toBeGreaterThan(0.85);
   });
 });
 

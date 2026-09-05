@@ -1,11 +1,15 @@
 import type { Team } from './types';
 
 /* ============================================================================
- * The sixteen. 2025 results and the 2026 nine-game annual-opponent structure
- * are verified from public reporting. Per-play efficiency profiles and the
- * seven rating components are the analyst layer: they are calibrated so that
- * each team's component sum lands on a projection consistent with published
- * preseason ratings, while remaining individually interpretable.
+ * The sixteen.
+ *
+ * This file holds observations only. 2025 results and the 2026 nine-game
+ * annual-opponent structure are verified from public reporting; the per-play
+ * efficiency profiles, returning production and talent figures are the analyst
+ * layer and are flagged as such in the interface.
+ *
+ * Deliberately absent: rating components. Those are derived from these inputs
+ * by engine/model.ts, so there is no per-team constant anywhere in the model.
  * ========================================================================== */
 
 export const TEAMS: Team[] = [
@@ -32,7 +36,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: 0.57, redZoneTdRate: 0.643, redZoneTdRateAllowed: 0.484,
       stEpa: 0.52, startingFieldPos: 31.4,
     },
-    components: { offense: 10.8, defense: 11.2, specialTeams: 0.5, coaching: 1.8, returningProduction: 0.4, portalRecruiting: 0.7, quarterback: 0.6 },
     returning: { overall: 0.66, offense: 0.68, defense: 0.64, passingYards: 0.94, rushingYards: 0.71, receivingYards: 0.55, tackles: 0.61, olStarts: 71 },
     talent: { blueChipRatio: 0.86, composite: 941, recruitClassRank: 2, portalClassRank: 14, portalNetPoints: 0.7 },
     apPreseason: 3, spPlusRank: 4,
@@ -66,7 +69,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: 0.31, redZoneTdRate: 0.612, redZoneTdRateAllowed: 0.496,
       stEpa: 0.41, startingFieldPos: 30.8,
     },
-    components: { offense: 10.2, defense: 10.4, specialTeams: 0.4, coaching: 1.1, returningProduction: -0.3, portalRecruiting: 1.0, quarterback: 1.2 },
     returning: { overall: 0.62, offense: 0.58, defense: 0.66, passingYards: 0.97, rushingYards: 0.34, receivingYards: 0.61, tackles: 0.68, olStarts: 63 },
     talent: { blueChipRatio: 0.82, composite: 928, recruitClassRank: 4, portalClassRank: 6, portalNetPoints: 1.0 },
     apPreseason: 5, spPlusRank: 6,
@@ -100,7 +102,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: 0.69, redZoneTdRate: 0.598, redZoneTdRateAllowed: 0.472,
       stEpa: 0.28, startingFieldPos: 31.9,
     },
-    components: { offense: 9.6, defense: 8.8, specialTeams: 0.3, coaching: 0.9, returningProduction: 0.2, portalRecruiting: 0.8, quarterback: 0.9 },
     returning: { overall: 0.64, offense: 0.66, defense: 0.62, passingYards: 0.96, rushingYards: 0.58, receivingYards: 0.72, tackles: 0.55, olStarts: 58 },
     talent: { blueChipRatio: 0.74, composite: 906, recruitClassRank: 8, portalClassRank: 11, portalNetPoints: 0.8 },
     apPreseason: 8, spPlusRank: 9,
@@ -134,7 +135,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: -0.31, redZoneTdRate: 0.554, redZoneTdRateAllowed: 0.581,
       stEpa: -0.14, startingFieldPos: 28.6,
     },
-    components: { offense: 8.9, defense: 8.2, specialTeams: 0.2, coaching: 1.5, returningProduction: -0.8, portalRecruiting: 2.1, quarterback: 0.9 },
     returning: { overall: 0.44, offense: 0.36, defense: 0.52, passingYards: 0.08, rushingYards: 0.41, receivingYards: 0.47, tackles: 0.58, olStarts: 41 },
     talent: { blueChipRatio: 0.79, composite: 918, recruitClassRank: 9, portalClassRank: 1, portalNetPoints: 2.1 },
     apPreseason: 11, spPlusRank: 10,
@@ -168,7 +168,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: 0.46, redZoneTdRate: 0.571, redZoneTdRateAllowed: 0.441,
       stEpa: 0.36, startingFieldPos: 31.1,
     },
-    components: { offense: 7.4, defense: 10.6, specialTeams: 0.4, coaching: 0.6, returningProduction: 0.1, portalRecruiting: 0.3, quarterback: 1.1 },
     returning: { overall: 0.68, offense: 0.63, defense: 0.73, passingYards: 0.95, rushingYards: 0.62, receivingYards: 0.69, tackles: 0.74, olStarts: 66 },
     talent: { blueChipRatio: 0.71, composite: 899, recruitClassRank: 7, portalClassRank: 18, portalNetPoints: 0.3 },
     apPreseason: 10, spPlusRank: 11,
@@ -202,7 +201,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: 0.13, redZoneTdRate: 0.624, redZoneTdRateAllowed: 0.512,
       stEpa: 0.24, startingFieldPos: 30.2,
     },
-    components: { offense: 9.1, defense: 8.6, specialTeams: 0.3, coaching: 0.7, returningProduction: -0.2, portalRecruiting: 0.5, quarterback: 0.5 },
     returning: { overall: 0.61, offense: 0.59, defense: 0.63, passingYards: 0.42, rushingYards: 0.66, receivingYards: 0.78, tackles: 0.67, olStarts: 54 },
     talent: { blueChipRatio: 0.83, composite: 933, recruitClassRank: 3, portalClassRank: 12, portalNetPoints: 0.5 },
     apPreseason: 12, spPlusRank: 13,
@@ -236,7 +234,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: -0.08, redZoneTdRate: 0.607, redZoneTdRateAllowed: 0.534,
       stEpa: 0.44, startingFieldPos: 30.6,
     },
-    components: { offense: 9.4, defense: 7.6, specialTeams: 0.5, coaching: 0.8, returningProduction: -0.6, portalRecruiting: 0.4, quarterback: 0.9 },
     returning: { overall: 0.55, offense: 0.48, defense: 0.62, passingYards: 0.11, rushingYards: 0.72, receivingYards: 0.51, tackles: 0.65, olStarts: 61 },
     talent: { blueChipRatio: 0.68, composite: 888, recruitClassRank: 11, portalClassRank: 16, portalNetPoints: 0.4 },
     apPreseason: 16, spPlusRank: 14,
@@ -270,7 +267,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: 0.53, redZoneTdRate: 0.638, redZoneTdRateAllowed: 0.507,
       stEpa: 0.09, startingFieldPos: 31.7,
     },
-    components: { offense: 8.6, defense: 7.4, specialTeams: 0.1, coaching: -0.4, returningProduction: -0.9, portalRecruiting: 0.9, quarterback: 1.8 },
     returning: { overall: 0.47, offense: 0.52, defense: 0.42, passingYards: 0.98, rushingYards: 0.88, receivingYards: 0.31, tackles: 0.44, olStarts: 47 },
     talent: { blueChipRatio: 0.62, composite: 871, recruitClassRank: 15, portalClassRank: 7, portalNetPoints: 0.9 },
     apPreseason: 9, spPlusRank: 20,
@@ -304,7 +300,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: 0.15, redZoneTdRate: 0.591, redZoneTdRateAllowed: 0.523,
       stEpa: 0.31, startingFieldPos: 30.4,
     },
-    components: { offense: 7.2, defense: 6.1, specialTeams: 0.3, coaching: 0.5, returningProduction: -0.7, portalRecruiting: 0.4, quarterback: 0.2 },
     returning: { overall: 0.53, offense: 0.51, defense: 0.55, passingYards: 0.04, rushingYards: 0.91, receivingYards: 0.48, tackles: 0.59, olStarts: 69 },
     talent: { blueChipRatio: 0.49, composite: 851, recruitClassRank: 18, portalClassRank: 5, portalNetPoints: 0.4 },
     apPreseason: 19, spPlusRank: 17,
@@ -338,7 +333,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: -0.42, redZoneTdRate: 0.524, redZoneTdRateAllowed: 0.518,
       stEpa: 0.18, startingFieldPos: 28.9,
     },
-    components: { offense: 5.4, defense: 6.8, specialTeams: 0.2, coaching: 0.4, returningProduction: -0.6, portalRecruiting: 0.6, quarterback: -0.3 },
     returning: { overall: 0.51, offense: 0.44, defense: 0.58, passingYards: 0.19, rushingYards: 0.83, receivingYards: 0.42, tackles: 0.61, olStarts: 44 },
     talent: { blueChipRatio: 0.64, composite: 876, recruitClassRank: 13, portalClassRank: 15, portalNetPoints: 0.6 },
     apPreseason: 23, spPlusRank: 22,
@@ -372,7 +366,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: -0.58, redZoneTdRate: 0.512, redZoneTdRateAllowed: 0.494,
       stEpa: 0.06, startingFieldPos: 28.2,
     },
-    components: { offense: 4.6, defense: 6.6, specialTeams: 0.1, coaching: 0.3, returningProduction: -1.6, portalRecruiting: 1.2, quarterback: 0.3 },
     returning: { overall: 0.33, offense: 0.11, defense: 0.55, passingYards: 0.02, rushingYards: 0.28, receivingYards: 0.09, tackles: 0.57, olStarts: 12 },
     talent: { blueChipRatio: 0.67, composite: 883, recruitClassRank: 10, portalClassRank: 8, portalNetPoints: 1.2 },
     apPreseason: null, spPlusRank: 26,
@@ -406,7 +399,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: -0.67, redZoneTdRate: 0.498, redZoneTdRateAllowed: 0.486,
       stEpa: 0.21, startingFieldPos: 28.1,
     },
-    components: { offense: 3.6, defense: 6.2, specialTeams: 0.2, coaching: -0.2, returningProduction: 0.8, portalRecruiting: -0.2, quarterback: -0.4 },
     returning: { overall: 0.72, offense: 0.69, defense: 0.75, passingYards: 0.93, rushingYards: 0.77, receivingYards: 0.81, tackles: 0.78, olStarts: 72 },
     talent: { blueChipRatio: 0.58, composite: 862, recruitClassRank: 16, portalClassRank: 21, portalNetPoints: -0.2 },
     apPreseason: null, spPlusRank: 28,
@@ -440,7 +432,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: 0.92, redZoneTdRate: 0.616, redZoneTdRateAllowed: 0.529,
       stEpa: 0.39, startingFieldPos: 30.9,
     },
-    components: { offense: 5.6, defense: 3.9, specialTeams: 0.4, coaching: 0.9, returningProduction: -1.2, portalRecruiting: 0.1, quarterback: -0.7 },
     returning: { overall: 0.42, offense: 0.31, defense: 0.53, passingYards: 0.03, rushingYards: 0.44, receivingYards: 0.38, tackles: 0.56, olStarts: 38 },
     talent: { blueChipRatio: 0.21, composite: 796, recruitClassRank: 34, portalClassRank: 24, portalNetPoints: 0.1 },
     apPreseason: 24, spPlusRank: 31,
@@ -474,7 +465,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: -0.25, redZoneTdRate: 0.481, redZoneTdRateAllowed: 0.541,
       stEpa: 0.11, startingFieldPos: 28.4,
     },
-    components: { offense: 2.6, defense: 3.1, specialTeams: 0.1, coaching: 0.2, returningProduction: -1.4, portalRecruiting: 1.1, quarterback: -0.2 },
     returning: { overall: 0.36, offense: 0.29, defense: 0.43, passingYards: 0.12, rushingYards: 0.21, receivingYards: 0.34, tackles: 0.48, olStarts: 26 },
     talent: { blueChipRatio: 0.34, composite: 823, recruitClassRank: 27, portalClassRank: 4, portalNetPoints: 1.1 },
     apPreseason: null, spPlusRank: 43,
@@ -508,7 +498,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: -0.38, redZoneTdRate: 0.563, redZoneTdRateAllowed: 0.596,
       stEpa: -0.08, startingFieldPos: 29.1,
     },
-    components: { offense: 2.2, defense: 1.9, specialTeams: -0.1, coaching: 0.1, returningProduction: 0.3, portalRecruiting: 0.0, quarterback: -0.4 },
     returning: { overall: 0.63, offense: 0.66, defense: 0.60, passingYards: 0.88, rushingYards: 0.72, receivingYards: 0.58, tackles: 0.64, olStarts: 52 },
     talent: { blueChipRatio: 0.27, composite: 809, recruitClassRank: 31, portalClassRank: 26, portalNetPoints: 0.0 },
     apPreseason: null, spPlusRank: 48,
@@ -542,7 +531,6 @@ export const TEAMS: Team[] = [
       turnoverMargin: -0.83, redZoneTdRate: 0.472, redZoneTdRateAllowed: 0.618,
       stEpa: -0.16, startingFieldPos: 27.6,
     },
-    components: { offense: 1.8, defense: 0.9, specialTeams: 0.0, coaching: 0.2, returningProduction: -0.6, portalRecruiting: 0.3, quarterback: -0.6 },
     returning: { overall: 0.48, offense: 0.54, defense: 0.42, passingYards: 0.61, rushingYards: 0.68, receivingYards: 0.44, tackles: 0.39, olStarts: 47 },
     talent: { blueChipRatio: 0.31, composite: 816, recruitClassRank: 29, portalClassRank: 19, portalNetPoints: 0.3 },
     apPreseason: null, spPlusRank: 55,

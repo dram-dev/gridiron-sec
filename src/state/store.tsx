@@ -12,6 +12,7 @@ import {
   type Scenario, type TeamOverride, type Weather,
 } from '../engine/scenario';
 import SeasonWorker from '../workers/season.worker?worker&inline';
+import { DEFAULT_COEFFICIENTS, type ModelCoefficients } from '../engine/model';
 import { buildHash, parseHash, type ViewId } from '../lib/routing';
 import type { Mode } from '../lib/viz';
 
@@ -53,6 +54,8 @@ type Action =
   | { type: 'weather'; weather: Weather }
   | { type: 'forceResult'; gameId: string; winner: 'home' | 'away' | null }
   | { type: 'seed'; seed: number }
+  | { type: 'coefficient'; key: keyof ModelCoefficients; value: number }
+  | { type: 'resetCoefficients' }
   | { type: 'resetScenario' }
   | { type: 'loadScenario'; scenario: Scenario };
 
@@ -148,6 +151,19 @@ function reducer(state: State, action: Action): State {
     }
     case 'seed':
       return { ...state, scenario: { ...state.scenario, seed: action.seed } };
+    case 'coefficient':
+      return {
+        ...state,
+        scenario: {
+          ...state.scenario,
+          coefficients: { ...state.scenario.coefficients, [action.key]: action.value },
+        },
+      };
+    case 'resetCoefficients':
+      return {
+        ...state,
+        scenario: { ...state.scenario, coefficients: { ...DEFAULT_COEFFICIENTS } },
+      };
     case 'resetScenario':
       return {
         ...state,

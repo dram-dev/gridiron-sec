@@ -19,6 +19,7 @@ per team, top two by conference winning percentage meet in Atlanta on 5 December
 | **Player Lab** | All 191 tracked players ranked by PAR, with season projections carrying 10th–90th percentile bands and per-week matchup difficulty |
 | **Matchup Simulator** | Any two teams, 30,000 drive-level simulations — margin distribution, most likely final scores, spread and total ladders, key player lines for both sides |
 | **Coach Intelligence** | Tendency profiles that survive roster turnover, career arcs, and the uncertainty premium on six first-year staffs |
+| **[Model Lab](https://dram-dev.github.io/gridiron-sec/#/model)** | The twelve coefficients that *are* the model — move one and the whole league re-derives, scored against rankings it was never fitted to |
 | **[How this works](https://dram-dev.github.io/gridiron-sec/#/how-it-works)** | Long-form explainer — the engine end to end, and the design decisions behind the interface |
 | **Scenario Studio** | Injury availability, per-team dials, league-wide conditions, and forced results for conditional odds |
 | **Methodology** | Every constant, every source, every limitation |
@@ -33,8 +34,19 @@ Three layers, each taking the one above as input.
 
 **1 — Team rating.** Points per game above an average FBS team on a neutral field, as the sum
 of seven named components: returning offence, returning defence, quarterback, coaching,
-continuity, portal & recruiting, and special teams. Keeping them separate is what makes the
-projection explainable and what lets a scenario move exactly one thing at a time.
+continuity, portal & recruiting, and special teams.
+
+**No team carries a rating constant.** Each component is *derived* from that team's
+observations — prior-season per-play efficiency, the summed value of the roster on hand,
+returning production, blue-chip ratio, the portal cycle, the coaching record — by twelve
+global coefficients in `engine/model.ts`, applied identically to all sixteen teams. There is
+nowhere in the system to write down "Georgia, 26 points"; that number falls out. A test
+asserts no `components` field ever returns to the team data.
+
+That structure earns an external check. Nothing is fitted to SP+, yet the derived conference
+ordering correlates with the published SP+ preseason ranking at **ρ = 0.96** — evidence the
+derivation is not arbitrary, and a regression guard in the test suite. It is not a backtest:
+no result is scored.
 
 **2 — Game model.** Margin is pure rating arithmetic (`rating gap + home field + rest`, damped
 by weather), so any projection reads back as "this team is N points better, plus home field".
@@ -115,7 +127,9 @@ produce the same numbers.
 
 ## Tests
 
-`npm test` covers schedule integrity (72 conference games, nine per team, all annual opponents
+`npm test` covers the derivation (no per-team constants, league anchoring, near-invariance
+under rescaling, coach regression with no record, and the SP+ rank correlation as a guard),
+schedule integrity (72 conference games, nine per team, all annual opponents
 honoured, no double-bookings), data integrity (every player on a real team, usage shares and
 probabilities in range), the statistics helpers, rating arithmetic (components sum to the
 total; ruling a player out costs exactly their PAR), agreement between the closed-form and

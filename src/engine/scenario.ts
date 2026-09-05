@@ -1,4 +1,5 @@
 import type { Availability, TeamId } from '../data/types';
+import { DEFAULT_COEFFICIENTS, type ModelCoefficients } from './model';
 
 /* ============================================================================
  * A scenario is a set of overrides layered on top of the baseline dataset.
@@ -59,6 +60,11 @@ export interface Scenario {
   seed: number;
   /** Monte Carlo iterations for the season simulation. */
   iterations: number;
+  /**
+   * The model itself. These are the only tuned numbers in the system, and
+   * moving one re-derives every team's rating from its observations.
+   */
+  coefficients: ModelCoefficients;
 }
 
 export const EMPTY_TEAM_OVERRIDE: TeamOverride = {
@@ -77,6 +83,7 @@ export function makeBaselineScenario(): Scenario {
     forcedResults: {},
     seed: 20260905,
     iterations: 8000,
+    coefficients: { ...DEFAULT_COEFFICIENTS },
   };
 }
 
@@ -98,7 +105,16 @@ export function scenarioEditCount(s: Scenario): number {
   if (s.homeFieldMultiplier !== 1) n++;
   if (s.weather.kind !== 'clear') n++;
   n += Object.keys(s.forcedResults).length;
+  for (const k of Object.keys(DEFAULT_COEFFICIENTS) as (keyof ModelCoefficients)[]) {
+    if (s.coefficients[k] !== DEFAULT_COEFFICIENTS[k]) n++;
+  }
   return n;
+}
+
+/** True when the model coefficients are untouched. */
+export function coefficientsAreDefault(s: Scenario): boolean {
+  return (Object.keys(DEFAULT_COEFFICIENTS) as (keyof ModelCoefficients)[])
+    .every((k) => s.coefficients[k] === DEFAULT_COEFFICIENTS[k]);
 }
 
 export function isBaseline(s: Scenario): boolean {
