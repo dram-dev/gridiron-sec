@@ -183,6 +183,8 @@ export interface Team {
   coachId: string;
   joined: number;
   record2025: SeasonRecord;
+  /** Results so far in the season being projected. All zeroes in the preseason. */
+  record2026: SeasonRecord;
   efficiency: EfficiencyProfile;
   returning: ReturningProduction;
   talent: TalentProfile;
@@ -350,6 +352,8 @@ export interface Player {
    * `production2025` and the measured entries in `rates`.
    */
   measuredPlays?: number;
+  /** Production so far in the season being projected, when there is any. */
+  productionCurrent?: PlayerProduction;
   /** Share of the prior season's team usage, measured. Backward-looking — the
    *  forward-looking projection lives in `usage`. */
   usage2025?: Partial<PlayerUsage>;

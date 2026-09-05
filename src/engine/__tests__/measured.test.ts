@@ -43,6 +43,15 @@ describe('the measured layer', () => {
     expect(MEASURED_META.priorSeason).toBe(MEASURED_META.projectionSeason - 1);
   });
 
+  it('reports how much of the season being projected it has seen', () => {
+    expect(MEASURED_META.throughWeek).toBeGreaterThanOrEqual(0);
+    expect(MEASURED_META.throughWeek).toBeLessThanOrEqual(16);
+    // Weeks and games have to agree: one without the other means the current
+    // season was half-read.
+    expect(MEASURED_META.throughWeek > 0).toBe(MEASURED_META.currentGames > 0);
+    expect(MEASURED_META.priorSeasonGames).toBeGreaterThan(0);
+  });
+
   it('predicts game margins better with the schedule removed than with it left in', () => {
     // The whole justification for the opponent adjustment, carried in the data.
     expect(MEASURED_META.marginR2.adjusted).toBeGreaterThan(MEASURED_META.marginR2.raw);
@@ -101,6 +110,37 @@ describe('the measured layer', () => {
     const wins = TEAMS.reduce((n, t) => n + MEASURED_RECORD[t.id].confWins, 0);
     const losses = TEAMS.reduce((n, t) => n + MEASURED_RECORD[t.id].confLosses, 0);
     expect(wins).toBe(losses);
+  });
+
+  it('does not report a rate that is the same for every team', () => {
+    // Fourth-down go rate shipped at exactly 1.000 for all sixteen teams for
+    // two releases, because punts and field goals are not plays from scrimmage
+    // and the count sat behind a scrimmage-play filter — so the only fourth
+    // downs it ever saw were the ones a team went for. A bounds check passed it
+    // happily. A rate identical across a whole conference is not a measurement.
+    for (const f of ['fourthDownGoRate', 'passRate', 'dropbackRate', 'proe', 'secondsPerPlay',
+      'playsPerGame', 'stEpa', 'turnoverMargin', 'startingFieldPos',
+      'offSuccess', 'defSuccess', 'havoc', 'lineYards'] as const) {
+      const values = new Set(TEAMS.map((t) => MEASURED_EFFICIENCY[t.id][f]));
+      expect(values.size, `${f} is identical across all teams`).toBeGreaterThan(4);
+    }
+  });
+
+  it('keeps fourth-down aggression in the range coaches actually operate in', () => {
+    for (const t of TEAMS) {
+      const rate = MEASURED_EFFICIENCY[t.id].fourthDownGoRate;
+      expect(rate, `${t.id} go rate`).toBeGreaterThan(0.02);
+      expect(rate, `${t.id} go rate`).toBeLessThan(0.6);
+    }
+  });
+
+  it('keeps special teams inside the range a real unit is worth', () => {
+    // A per-game value dominated by variance; a single blowout must not be able
+    // to push a team past what the best unit in the country is worth.
+    for (const t of TEAMS) {
+      expect(Math.abs(MEASURED_EFFICIENCY[t.id].stEpa), `${t.id} stEpa`).toBeLessThan(4);
+      expect(Math.abs(MEASURED_EFFICIENCY[t.id].turnoverMargin), `${t.id} TO margin`).toBeLessThan(2.5);
+    }
   });
 
   it('separates the teams it should separate', () => {

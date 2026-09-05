@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MEASURED_META } from './data/measured';
 import { CommandPalette } from './components/CommandPalette';
 import {
   IconBook, IconClipboard, IconGauge, IconMenu, IconMoon, IconPerson, IconReset,
@@ -95,7 +96,9 @@ export default function App() {
                 Gridiron SEC
               </div>
               <div className="text-[10.5px] leading-tight" style={{ color: 'var(--text-low)' }}>
-                2026 forecasting model
+                {MEASURED_META.throughWeek > 0
+                  ? `Updated through week ${MEASURED_META.throughWeek}`
+                  : `${MEASURED_META.projectionSeason} preseason projection`}
               </div>
             </div>
           </div>

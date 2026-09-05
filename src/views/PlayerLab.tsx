@@ -7,6 +7,7 @@ import {
 } from '../components/ui';
 import { ALL_PLAYERS, PLAYER_BY_ID, POSITION_SIDE } from '../data/players';
 import { MEASURED_PLAYERS } from '../data/measuredPlayers';
+import { MEASURED_META } from '../data/measured';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
 import type { Player, Position } from '../data/types';
 import { projectPlayerGame, projectPlayerSeason } from '../engine/players';
@@ -242,7 +243,10 @@ function PlayerDetail({ player }: { player: Player }) {
     return [lo - pad, hi + pad];
   }, [perGame]);
 
-  const prod = player.production2025;
+  // In October nobody wants last November's stat line. Once the season has
+  // produced one, it leads; the prior season stays available underneath it.
+  const live = player.productionCurrent;
+  const prod = live ?? player.production2025;
   const measured = MEASURED_PLAYERS[player.id];
 
   return (
@@ -365,7 +369,7 @@ function PlayerDetail({ player }: { player: Player }) {
         </div>
 
         <div>
-          <Label>2025 production</Label>
+          <Label>{live ? `${MEASURED_META.projectionSeason} production` : `${MEASURED_META.priorSeason} production`}</Label>
           {prod ? (
             <div className="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-[10px] sm:grid-cols-3" style={{ background: 'var(--line-faint)', border: '1px solid var(--line)' }}>
               {([

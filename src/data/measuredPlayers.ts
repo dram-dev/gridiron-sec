@@ -1007,3 +1007,53 @@ export const MEASURED_PLAYERS: Record<string, MeasuredPlayer> = {
     usage: { carryShare: 0.029, targetShare: 0.189 },
   },
 };
+
+/**
+ * The same count over the season in progress. Empty until it starts, and the
+ * line worth showing once it is not — nobody wants last November's stat line in
+ * October. Transfers are matched to their new school here, not the old one.
+ */
+export const MEASURED_PLAYERS_CURRENT: Record<string, MeasuredPlayer> = {
+  "miz-austin-simmons": {
+    school2025: "Missouri Tigers",
+    plays: 21,
+    production: { games: 1, attempts: 19, completions: 17, passYds: 174, passTd: 4, interceptions: 0, carries: 1, rushYds: 2, rushTd: 0 },
+    rates: { ypa: 9.2, ypc: 2, epaPerPlay: 0.87, explosiveRate: 0 },
+    usage: { passAttemptShare: 0.594, carryShare: 0.023 },
+  },
+  "miz-blake-craig": {
+    school2025: "Missouri Tigers",
+    plays: 1,
+    production: { games: 1, fgAttempts: 1, fgMade: 1, fgLong: 32 },
+    rates: { epaPerPlay: 0 },
+    usage: {},
+  },
+  "ou-isaiah-sategna-iii": {
+    school2025: "Oklahoma Sooners",
+    plays: 5,
+    production: { games: 1, targets: 5, receptions: 4, recYds: 76, recTd: 1 },
+    rates: { ypt: 15.2, epaPerPlay: 1.163, explosiveRate: 0 },
+    usage: { targetShare: 0.238 },
+  },
+  "ou-john-mateer": {
+    school2025: "Oklahoma Sooners",
+    plays: 22,
+    production: { games: 1, attempts: 18, completions: 12, passYds: 237, passTd: 3, interceptions: 0, carries: 3, rushYds: 7, rushTd: 0 },
+    rates: { ypa: 13.2, ypc: 2.3, epaPerPlay: 0.566, explosiveRate: 0 },
+    usage: { passAttemptShare: 0.9, carryShare: 0.079 },
+  },
+  "ou-peyton-bowen": {
+    school2025: "Oklahoma Sooners",
+    plays: 0,
+    production: { games: 1, takeaways: 1, passBreakups: 1 },
+    rates: {},
+    usage: {},
+  },
+  "ou-tate-sandell": {
+    school2025: "Oklahoma Sooners",
+    plays: 2,
+    production: { games: 1, fgAttempts: 2, fgMade: 2, fgLong: 0 },
+    rates: { epaPerPlay: 0 },
+    usage: {},
+  },
+};

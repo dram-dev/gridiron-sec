@@ -2,6 +2,7 @@ import type { Team } from './types';
 import {
   MEASURED_EFFICIENCY,
   MEASURED_RECORD,
+  MEASURED_RECORD_CURRENT,
   MEASURED_RETURNING,
   MEASURED_TALENT,
 } from './measured';
@@ -33,6 +34,7 @@ export const TEAMS: Team[] = [
     coachId: 'smart',
     joined: 1933,
     record2025: MEASURED_RECORD.UGA,
+    record2026: MEASURED_RECORD_CURRENT.UGA,
     efficiency: MEASURED_EFFICIENCY.UGA,
     returning: {
       ...MEASURED_RETURNING.UGA,
@@ -64,6 +66,7 @@ export const TEAMS: Team[] = [
     coachId: 'sarkisian',
     joined: 2024,
     record2025: MEASURED_RECORD.TEX,
+    record2026: MEASURED_RECORD_CURRENT.TEX,
     efficiency: MEASURED_EFFICIENCY.TEX,
     returning: {
       ...MEASURED_RETURNING.TEX,
@@ -95,6 +98,7 @@ export const TEAMS: Team[] = [
     coachId: 'elko',
     joined: 2012,
     record2025: MEASURED_RECORD.TAM,
+    record2026: MEASURED_RECORD_CURRENT.TAM,
     efficiency: MEASURED_EFFICIENCY.TAM,
     returning: {
       ...MEASURED_RETURNING.TAM,
@@ -126,6 +130,7 @@ export const TEAMS: Team[] = [
     coachId: 'kiffin',
     joined: 1933,
     record2025: MEASURED_RECORD.LSU,
+    record2026: MEASURED_RECORD_CURRENT.LSU,
     efficiency: MEASURED_EFFICIENCY.LSU,
     returning: {
       ...MEASURED_RETURNING.LSU,
@@ -157,6 +162,7 @@ export const TEAMS: Team[] = [
     coachId: 'venables',
     joined: 2024,
     record2025: MEASURED_RECORD.OU,
+    record2026: MEASURED_RECORD_CURRENT.OU,
     efficiency: MEASURED_EFFICIENCY.OU,
     returning: {
       ...MEASURED_RETURNING.OU,
@@ -188,6 +194,7 @@ export const TEAMS: Team[] = [
     coachId: 'deboer',
     joined: 1933,
     record2025: MEASURED_RECORD.ALA,
+    record2026: MEASURED_RECORD_CURRENT.ALA,
     efficiency: MEASURED_EFFICIENCY.ALA,
     returning: {
       ...MEASURED_RETURNING.ALA,
@@ -219,6 +226,7 @@ export const TEAMS: Team[] = [
     coachId: 'heupel',
     joined: 1933,
     record2025: MEASURED_RECORD.TENN,
+    record2026: MEASURED_RECORD_CURRENT.TENN,
     efficiency: MEASURED_EFFICIENCY.TENN,
     returning: {
       ...MEASURED_RETURNING.TENN,
@@ -250,6 +258,7 @@ export const TEAMS: Team[] = [
     coachId: 'golding',
     joined: 1933,
     record2025: MEASURED_RECORD.MISS,
+    record2026: MEASURED_RECORD_CURRENT.MISS,
     efficiency: MEASURED_EFFICIENCY.MISS,
     returning: {
       ...MEASURED_RETURNING.MISS,
@@ -281,6 +290,7 @@ export const TEAMS: Team[] = [
     coachId: 'drinkwitz',
     joined: 2012,
     record2025: MEASURED_RECORD.MIZ,
+    record2026: MEASURED_RECORD_CURRENT.MIZ,
     efficiency: MEASURED_EFFICIENCY.MIZ,
     returning: {
       ...MEASURED_RETURNING.MIZ,
@@ -312,6 +322,7 @@ export const TEAMS: Team[] = [
     coachId: 'sumrall',
     joined: 1933,
     record2025: MEASURED_RECORD.FLA,
+    record2026: MEASURED_RECORD_CURRENT.FLA,
     efficiency: MEASURED_EFFICIENCY.FLA,
     returning: {
       ...MEASURED_RETURNING.FLA,
@@ -343,6 +354,7 @@ export const TEAMS: Team[] = [
     coachId: 'golesh',
     joined: 1933,
     record2025: MEASURED_RECORD.AUB,
+    record2026: MEASURED_RECORD_CURRENT.AUB,
     efficiency: MEASURED_EFFICIENCY.AUB,
     returning: {
       ...MEASURED_RETURNING.AUB,
@@ -374,6 +386,7 @@ export const TEAMS: Team[] = [
     coachId: 'beamer',
     joined: 1992,
     record2025: MEASURED_RECORD.SC,
+    record2026: MEASURED_RECORD_CURRENT.SC,
     efficiency: MEASURED_EFFICIENCY.SC,
     returning: {
       ...MEASURED_RETURNING.SC,
@@ -405,6 +418,7 @@ export const TEAMS: Team[] = [
     coachId: 'lea',
     joined: 1933,
     record2025: MEASURED_RECORD.VAN,
+    record2026: MEASURED_RECORD_CURRENT.VAN,
     efficiency: MEASURED_EFFICIENCY.VAN,
     returning: {
       ...MEASURED_RETURNING.VAN,
@@ -436,6 +450,7 @@ export const TEAMS: Team[] = [
     coachId: 'stein',
     joined: 1933,
     record2025: MEASURED_RECORD.UK,
+    record2026: MEASURED_RECORD_CURRENT.UK,
     efficiency: MEASURED_EFFICIENCY.UK,
     returning: {
       ...MEASURED_RETURNING.UK,
@@ -467,6 +482,7 @@ export const TEAMS: Team[] = [
     coachId: 'lebby',
     joined: 1933,
     record2025: MEASURED_RECORD.MSST,
+    record2026: MEASURED_RECORD_CURRENT.MSST,
     efficiency: MEASURED_EFFICIENCY.MSST,
     returning: {
       ...MEASURED_RETURNING.MSST,
@@ -498,6 +514,7 @@ export const TEAMS: Team[] = [
     coachId: 'silverfield',
     joined: 1992,
     record2025: MEASURED_RECORD.ARK,
+    record2026: MEASURED_RECORD_CURRENT.ARK,
     efficiency: MEASURED_EFFICIENCY.ARK,
     returning: {
       ...MEASURED_RETURNING.ARK,

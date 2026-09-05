@@ -134,6 +134,36 @@ And starters now come off the field in projected blowouts, which the model previ
 backwards: a blowout raised the run rate and put every extra carry on a starter who would
 already be in a baseball cap on the sideline.
 
+### Staying current
+
+The projection does not stand still once the season starts. `npm run etl:weekly` re-fetches the
+season in progress, rebuilds the data layer, typechecks, tests and builds; it runs every Tuesday
+morning and pushes, and GitHub Actions deploys from there.
+
+Last season and this one are not averaged after the fact. Last season's games are discounted
+inside the same fit — a flat factor so a full prior season carries about **2.2 games** of weight —
+so the current season takes over on its own as it is played, at a share of `games / (games + 2.2)`.
+
+That number is fitted, not chosen. `npm run etl:inseason` walks 2022-2025 and, for every week,
+builds one rating from the prior season and one from the games played so far, then lets real
+margins in the games *after* that week decide how to weigh them:
+
+| after week | season's share | R² both | R² preseason only | R² season only |
+|---|---|---|---|---|
+| 1 | 26% | 0.218 | 0.198 | 0.068 |
+| 4 | 61% | 0.254 | 0.154 | 0.210 |
+| 8 | 78% | 0.324 | 0.149 | 0.310 |
+| 11 | 80% | 0.353 | 0.167 | 0.340 |
+
+The implied weight on the preseason projection is about 2.2 games at *every* point from week 1 to
+week 11 — strikingly flat. Blending always beats either input alone, and a preseason number left
+alone decays from 0.198 to 0.167 as the season passes it by.
+
+Special teams, turnover margin and starting field position are held back from that discount. The
+2.2 games was fitted for the rating, and those three are per-game quantities dominated by luck; at
+a two-game memory one September blowout was handing a team six points a game of special-teams
+value, three times what the best unit in the country is worth.
+
 ### Rebuilding the measured layer
 
 ```bash

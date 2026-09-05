@@ -2,7 +2,7 @@ import type {
   ClassYear, Player, PlayerOrigin, PlayerProduction, PlayerRates,
   PlayerUsage, Position, Provenance, TeamId,
 } from './types';
-import { MEASURED_PLAYERS } from './measuredPlayers';
+import { MEASURED_PLAYERS, MEASURED_PLAYERS_CURRENT } from './measuredPlayers';
 
 /* ============================================================================
  * Rosters — the player layer.
@@ -57,6 +57,7 @@ function build(teamId: TeamId, seeds: Seed[]): Player[] {
   return seeds.map((d) => {
     const id = `${teamId.toLowerCase()}-${slug(d.n)}`;
     const m = MEASURED_PLAYERS[id];
+    const live = MEASURED_PLAYERS_CURRENT[id];
     return {
     id,
     name: d.n,
@@ -73,6 +74,7 @@ function build(teamId: TeamId, seeds: Seed[]): Player[] {
     // missed tackles — survive; everything it can count is overwritten.
     rates: { ...(d.r ?? {}), ...(m?.rates ?? {}) } as PlayerRates,
     measuredPlays: m?.plays,
+    productionCurrent: live?.production,
     usage2025: m?.usage,
     grade: d.g,
     par: d.par,

@@ -13,7 +13,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SOURCES, BACKTEST_SEASONS } from './sources.mjs';
+import { SOURCES, BACKTEST_SEASONS, PROJECTION_SEASON } from './sources.mjs';
 
 const BASE = 'https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/main/cfb';
 /** The extra seasons `npm run etl:backtest` needs — about 210 MB more. */
@@ -38,15 +38,21 @@ const wanted = process.argv.includes('--backtest')
   ? [...Object.values(SOURCES), ...backtestSources()]
   : Object.values(SOURCES);
 
-for (const { file, url, what } of wanted) {
+for (const { file, url, what, optional } of wanted) {
   const dest = join(DATA, file);
-  if (existsSync(dest) && statSync(dest).size > 0) {
+  // The current season changes every week, so it is always re-fetched.
+  const isCurrent = file.includes(String(PROJECTION_SEASON)) && file.startsWith('play_by_play');
+  if (!isCurrent && existsSync(dest) && statSync(dest).size > 0) {
     console.log(`have  ${file.padEnd(42)} ${mb(statSync(dest).size)}`);
     continue;
   }
   process.stdout.write(`get   ${file.padEnd(42)} …`);
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`\n  ${url}\n  ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    // The season in progress has no file until its first games are played.
+    if (optional && res.status === 404) { console.log(' not published yet'); continue; }
+    throw new Error(`\n  ${url}\n  ${res.status} ${res.statusText}`);
+  }
   await pipeline(Readable.fromWeb(res.body), createWriteStream(dest));
   console.log(` ${mb(statSync(dest).size)}\n      ${what}`);
 }

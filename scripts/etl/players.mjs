@@ -21,7 +21,8 @@ import { asyncBufferFromFile, parquetReadObjects } from 'hyparquet';
 import { compressors } from 'hyparquet-compressors';
 import { ALL_PLAYERS } from '../../src/data/players.ts';
 import { TEAM_BY_ID } from '../../src/data/teams.ts';
-import { SOURCES, PRIOR_SEASON } from './sources.mjs';
+import { SOURCES, PRIOR_SEASON, PROJECTION_SEASON } from './sources.mjs';
+import { existsSync } from 'node:fs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DATA = resolve(join(here, '../../.data'));
@@ -47,11 +48,23 @@ const COLUMNS = [
   'punter_player_id', 'punter_player_name', 'yds_punted',
 ];
 
-console.log(`reading ${SOURCES.pbp.file} …`);
-const plays = await parquetReadObjects({
-  file: await asyncBufferFromFile(join(DATA, SOURCES.pbp.file)), compressors, columns: COLUMNS,
+const readPlays = async (file) => parquetReadObjects({
+  file: await asyncBufferFromFile(join(DATA, file)), compressors, columns: COLUMNS,
 });
-console.log(`  ${plays.length.toLocaleString()} plays`);
+
+console.log(`reading ${SOURCES.pbp.file} …`);
+const priorPlays = await readPlays(SOURCES.pbp.file);
+console.log(`  ${priorPlays.length.toLocaleString()} plays`);
+
+/**
+ * The season in progress gets its own tally. A player's current line is what
+ * anyone actually wants to see in October, and it is also the sample the rate
+ * stabilisation should lean on once it is big enough to mean anything.
+ */
+const currentPlays = existsSync(join(DATA, SOURCES.current.file))
+  ? await readPlays(SOURCES.current.file)
+  : [];
+if (currentPlays.length) console.log(`  ${currentPlays.length.toLocaleString()} plays of ${PROJECTION_SEASON}`);
 
 /* -------------------------------------------------------------------------- */
 /* Per-player accumulation, keyed by the source's own player id               */
@@ -69,6 +82,7 @@ const blank = () => ({
   fgAttempts: 0, fgMade: 0, fgYards: 0, fgLong: 0, punts: 0, puntYards: 0,
 });
 
+function accumulate(plays) {
 const players = new Map();
 // ESPN credits team rushes (kneels, aborted snaps) to a placeholder "TEAM".
 const REAL = (id, name) => id != null && name && norm(name) !== 'team';
@@ -165,7 +179,13 @@ for (const p of plays) {
   }
 }
 
-console.log(`  ${players.size.toLocaleString()} named players`);
+return { players, teamTotals };
+}
+
+const prior = accumulate(priorPlays);
+const current = accumulate(currentPlays);
+console.log(`  ${prior.players.size.toLocaleString()} named players`);
+if (currentPlays.length) console.log(`  ${current.players.size.toLocaleString()} named so far this season`);
 
 /* -------------------------------------------------------------------------- */
 /* Resolve app roster → source player                                         */
@@ -174,16 +194,24 @@ console.log(`  ${players.size.toLocaleString()} named players`);
 const modalTeam = (teams) =>
   [...teams.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
+/**
+ * Where a player lined up in a given season. Last season that is the school
+ * they came from if they transferred; this season it is simply their own — a
+ * transfer is on their new roster now, and matching them to the old one would
+ * reject every one of them.
+ */
+const schoolIn = (player, live) =>
+  !live && player.origin === 'transfer' && player.from
+    ? player.from
+    : TEAM_BY_ID[player.teamId].school;
+
+function resolveRoster({ players, teamTotals }, live) {
 const byName = new Map();
 for (const [id, p] of players) {
   const k = norm(p.name);
   if (!k) continue;
   (byName.get(k) ?? byName.set(k, []).get(k)).push({ id, ...p, team: modalTeam(p.teams) });
 }
-
-/** Where each player lined up in 2025: their own school, or the one they left. */
-const school2025 = (player) =>
-  player.origin === 'transfer' && player.from ? player.from : TEAM_BY_ID[player.teamId].school;
 
 const out = {};
 const unmatched = [];
@@ -197,7 +225,7 @@ for (const player of ALL_PLAYERS) {
   // name more often than you would guess, and a silent mismatch attaches one
   // man's season to another — a worse outcome than no measurement at all. The
   // source names teams as "Georgia Bulldogs"; the roster says "Georgia".
-  const want = school2025(player).toLowerCase();
+  const want = schoolIn(player, live).toLowerCase();
   const onTeam = candidates.filter((c) => c.team && c.team.toLowerCase().startsWith(want));
   if (onTeam.length !== 1) { unmatched.push(player); continue; }
   if (candidates.length > 1) ambiguousResolved += 1;
@@ -257,7 +285,7 @@ for (const player of ALL_PLAYERS) {
   if (touches > 0) rates.explosiveRate = round((match.rushExplosive + match.recExplosive) / touches, 3);
 
   out[player.id] = {
-    school2025: match.team ?? school2025(player),
+    school2025: match.team ?? schoolIn(player, live),
     plays: involved,
     production: prune(production),
     rates: prune(rates),
@@ -268,6 +296,15 @@ for (const player of ALL_PLAYERS) {
 function round(v, d) { const f = 10 ** d; return Number.isFinite(v) ? Math.round(v * f) / f : 0; }
 /** Only absent values are dropped; a measured zero is a real observation. */
 function prune(o) { return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)); }
+
+return { out, unmatched, ambiguousResolved };
+}
+
+const priorResolved = resolveRoster(prior, false);
+const currentResolved = currentPlays.length ? resolveRoster(current, true) : { out: {}, unmatched: [], ambiguousResolved: 0 };
+const out = priorResolved.out;
+const unmatched = priorResolved.unmatched;
+const ambiguousResolved = priorResolved.ambiguousResolved;
 
 const matched = Object.keys(out).length;
 console.log(`  matched ${matched}/${ALL_PLAYERS.length} roster players (${ambiguousResolved} by school)`);
@@ -288,13 +325,15 @@ const obj = (o, indent) =>
   Object.keys(o).length === 0 ? '{}' :
     `{ ${Object.entries(o).map(([k, v]) => `${k}: ${lit(v)}`).join(', ')} }`;
 
-const body = Object.entries(out).sort(([a], [b]) => a.localeCompare(b)).map(([id, m]) => `  ${JSON.stringify(id)}: {
+const emit = (rows) => Object.entries(rows).sort(([a], [b]) => a.localeCompare(b)).map(([id, m]) => `  ${JSON.stringify(id)}: {
     school2025: ${JSON.stringify(m.school2025)},
     plays: ${m.plays},
     production: ${obj(m.production)},
     rates: ${obj(m.rates)},
     usage: ${obj(m.usage)},
   },`).join('\n');
+const body = emit(out);
+const currentBody = emit(currentResolved.out);
 
 writeFileSync(OUT, `/* eslint-disable */
 /* ============================================================================
@@ -326,6 +365,18 @@ export interface MeasuredPlayer {
 export const MEASURED_PLAYERS: Record<string, MeasuredPlayer> = {
 ${body}
 };
+
+/**
+ * The same count over the season in progress. Empty until it starts, and the
+ * line worth showing once it is not — nobody wants last November's stat line in
+ * October. Transfers are matched to their new school here, not the old one.
+ */
+export const MEASURED_PLAYERS_CURRENT: Record<string, MeasuredPlayer> = {
+${currentBody}
+};
 `);
 console.log(`\nwrote ${OUT}`);
+if (currentPlays.length) {
+  console.log(`  ${Object.keys(currentResolved.out).length} players with ${PROJECTION_SEASON} production so far`);
+}
 console.log('unmatched:', unmatched.map((p) => `${p.name} (${p.position})`).join(', ').slice(0, 600));

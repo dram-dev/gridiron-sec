@@ -15,7 +15,9 @@
     "etl": "node --max-old-space-size=8000 scripts/etl/build.mjs && npm run etl:players",
     "etl:validate": "node --max-old-space-size=8000 scripts/etl/validate.mjs",
     "etl:players": "vite-node scripts/etl/players.mjs",
-    "etl:backtest": "node --max-old-space-size=8000 scripts/etl/backtest.mjs"
+    "etl:backtest": "node --max-old-space-size=8000 scripts/etl/backtest.mjs",
+    "etl:weekly": "npm run etl:fetch && npm run etl && npm run typecheck && npm test && npm run build",
+    "etl:inseason": "node --max-old-space-size=8000 scripts/etl/inseason.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -28,15 +30,16 @@
     "@vitejs/plugin-react": "^6.1.0",
     "@vitest/coverage-v8": "^5.0.0",
     "autoprefixer": "^10.5.5",
+    "hyparquet": "^1.29.2",
+    "hyparquet-compressors": "^1.1.1",
     "oxlint": "^1.79.0",
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
+    "vite-node": "^6.0.0",
     "vite-plugin-singlefile": "^2.3.3",
-    "vitest": "^5.0.0",
-    "hyparquet": "^1.29.2",
-    "hyparquet-compressors": "^1.1.1"
+    "vitest": "^5.0.0"
   },
   "description": "A 2026 SEC college football forecasting model with team, player and coach analytics, head-to-head simulation and scenario planning.",
   "license": "MIT",

@@ -15,7 +15,9 @@ import { fileURLToPath } from 'node:url';
 import { asyncBufferFromFile, parquetReadObjects } from 'hyparquet';
 import { compressors } from 'hyparquet-compressors';
 import { fitEffects, selectLambda } from './adjust.mjs';
-import { SOURCES, SEC_TEAM_IDS, PRIOR_SEASON, PROJECTION_SEASON } from './sources.mjs';
+import {
+  SOURCES, SEC_TEAM_IDS, PRIOR_SEASON, PROJECTION_SEASON, PRIOR_SEASON_GAMES, SEASON_GAMES,
+} from './sources.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const arg = (flag, fallback) => {
@@ -48,8 +50,25 @@ const PLAY_COLUMNS = [
 ];
 
 console.log(`reading ${SOURCES.pbp.file} …`);
-const plays = await read('pbp', PLAY_COLUMNS);
-console.log(`  ${plays.length.toLocaleString()} plays`);
+const priorPlays = await read('pbp', PLAY_COLUMNS);
+console.log(`  ${priorPlays.length.toLocaleString()} plays`);
+
+/**
+ * The season in progress, if it has started. Its games are worth far more than
+ * last season's — see PRIOR_SEASON_GAMES — and in August there are none of them,
+ * which is the only reason a preseason projection is the whole answer.
+ */
+const currentPlays = existsSync(join(DATA, SOURCES.current.file))
+  ? await read('current', PLAY_COLUMNS)
+  : [];
+if (currentPlays.length) {
+  console.log(`reading ${SOURCES.current.file} …`);
+  console.log(`  ${currentPlays.length.toLocaleString()} plays`);
+}
+
+/** Which season a game belongs to, so its evidence can be weighted. */
+const currentGameIds = new Set(currentPlays.map((p) => String(p.game_id)));
+const plays = [...priorPlays, ...currentPlays];
 
 /**
  * No garbage-time filter — and that is a measured decision, not an oversight.
@@ -138,6 +157,30 @@ for (const p of ordered) {
   if (p.is_turnover === true && p.turnover_team != null) {
     unit(game, String(p.turnover_team)).giveaways += 1;
   }
+  // Fourth-down aggression, over decisions a coach actually got to make: a
+  // one-score-ish game, out of the two-minute drills, out of overtime.
+  //
+  // This has to happen before the scrimmage-play filter below. A punt and a
+  // field goal are special-teams plays, not plays from scrimmage, so counting
+  // decisions after that filter sees only the times a team went for it — and
+  // reports every coach in the country as going for it on every fourth down.
+  {
+    const d = num(p.down);
+    const per = num(p.period);
+    const secs = num(p['start.TimeSecsRem']);
+    const lead = num(p.pos_score_diff_start) ?? 0;
+    if (d === 4 && per != null && per <= 4 && Math.abs(lead) <= 16 && (secs ?? 999) > 120
+        && p.kneel_down !== true) {
+      const went = (p.rush === true || p.pass === true || p.sack === true)
+        && p.punt !== true && p.fg_attempt !== true;
+      if (went || p.punt === true || p.fg_attempt === true) {
+        const u4 = unit(game, off);
+        u4.fourthDecisions += 1;
+        if (went) u4.fourthGo += 1;
+      }
+    }
+  }
+
   if (p.scrimmage_play !== true || p.kneel_down === true) continue;
 
   const u = unit(game, off);
@@ -158,16 +201,6 @@ for (const p of ordered) {
     u.tempoN += 1;
   }
   if (clock != null) lastSnap.set(`${game}|${driveId}`, clock);
-
-  // Fourth-down aggression, over decisions a coach actually got to make:
-  // a one-score-ish game, out of the two-minute drills, out of overtime.
-  if (down === 4 && period != null && period <= 4 && Math.abs(margin) <= 16 && (clock ?? 999) > 120) {
-    const went = (p.rush === true || p.pass === true || p.sack === true) && p.punt !== true && p.fg_attempt !== true;
-    if (went || p.punt === true || p.fg_attempt === true) {
-      u.fourthDecisions += 1;
-      if (went) u.fourthGo += 1;
-    }
-  }
 
   // Drive-level rollup, for finishing and red-zone conversion.
   let d = u.drives.get(driveId);
@@ -202,6 +235,45 @@ for (const p of ordered) {
 
 const games = [...gameTeams.entries()].filter(([, s]) => s.size === 2);
 console.log(`  ${games.length.toLocaleString()} games with both sides present`);
+
+/**
+ * Evidence weighting across the two seasons.
+ *
+ * Rather than blend two finished ratings, last season's games are discounted
+ * inside the same fit. Every prior game carries the same fraction of a current
+ * one — PRIOR_SEASON_GAMES / SEASON_GAMES — so a full prior season totals about
+ * two games of weight, and a team's current season takes over on its own as it
+ * is played: its share is games / (games + 2.2), with no per-team bookkeeping.
+ * That is exactly the curve scripts/etl/inseason.mjs fits.
+ *
+ * The discount is flat by design. Scaling it per team by that team's own game
+ * count would hand a side with one game on its record six times the per-game
+ * weight of a side with thirteen, which inverts the whole point — thin evidence
+ * should count for less, and the ridge term is what already handles it.
+ */
+const PRIOR_DISCOUNT = PRIOR_SEASON_GAMES / SEASON_GAMES;
+const seasonWeight = (game) => (currentGameIds.has(game) ? 1 : PRIOR_DISCOUNT);
+
+/**
+ * Special teams, turnover margin and starting field position do not get the
+ * aggressive discount, and deliberately.
+ *
+ * The two-game figure was fitted for the rating — opponent-adjusted efficiency,
+ * which stabilises quickly. These three are per-game quantities dominated by
+ * variance and luck, and at a 2.2-game memory a single September blowout hands
+ * a team six points a game of special-teams value, which is three times what
+ * the best unit in the country is actually worth. They blend across both
+ * seasons at equal weight instead, so they move over a season rather than over
+ * a Saturday.
+ */
+const steadyWeight = () => 1;
+
+const currentWeeks = currentPlays.map((p) => num(p.week)).filter((w) => w != null);
+const throughWeek = currentWeeks.length ? Math.max(...currentWeeks) : 0;
+const currentGameCount = currentGameIds.size;
+if (currentGameCount) {
+  console.log(`  ${currentGameCount} games played in ${PROJECTION_SEASON} through week ${throughWeek}`);
+}
 
 /* -------------------------------------------------------------------------- */
 /* 3. Opponent-adjust the quality metrics                                     */
@@ -250,12 +322,22 @@ for (const [name, m] of Object.entries(METRICS)) {
     for (const [off, def] of [[a, b], [b, a]]) {
       const u = units.get(key(game, off));
       if (!u) continue;
-      const weight = m.weight(u);
+      const raw = m.weight(u);
+      const weight = raw * seasonWeight(game);
       const value = m.rate(u);
       if (!Number.isFinite(value) || weight <= 0) continue;
-      obs.push({ game, off, def, value, weight });
+      obs.push({ game, off, def, value, weight, raw });
     }
   }
+  // Discounting last season shrinks every weight, which would silently make a
+  // fixed ridge grid six times stronger. Rescaling to the undiscounted total
+  // keeps lambda in the units it was chosen in; only the ratio between seasons
+  // is meant to change.
+  const rawTotal = obs.reduce((t, o) => t + o.raw, 0);
+  const weightTotal = obs.reduce((t, o) => t + o.weight, 0);
+  const norm = weightTotal > 0 ? rawTotal / weightTotal : 1;
+  for (const o of obs) o.weight *= norm;
+
   const picked = selectLambda(obs, LAMBDA_GRID);
   fits[name] = fitEffects(obs, { lambda: picked.lambda });
   tuning[name] = { lambda: picked.lambda, error: picked.error, observations: obs.length };
@@ -276,32 +358,38 @@ for (const [game, teams] of games) {
     const u = units.get(key(game, team));
     if (!u) continue;
     let s = seasonTotals.get(team);
-    if (!s) seasonTotals.set(team, (s = { games: 0, allPlays: 0, dropbacks: 0, neutral: 0, neutralPass: 0, passOe: 0, passOeN: 0, fourthGo: 0, fourthDecisions: 0, tempo: 0, tempoN: 0, st: 0, giveaways: 0, takeaways: 0, driveStart: 0, driveStartN: 0 }));
-    s.games += 1;
-    s.allPlays += u.allPlays;
-    s.dropbacks += u.dropbacks;
-    s.neutral += u.neutral;
-    s.neutralPass += u.neutralPass;
-    s.passOe += u.passOe;
-    s.passOeN += u.passOeN;
-    s.fourthGo += u.fourthGo;
-    s.fourthDecisions += u.fourthDecisions;
-    s.tempo += u.tempo;
-    s.tempoN += u.tempoN;
-    s.st += u.stFor - u.stAgainst;
-    s.giveaways += u.giveaways;
+    if (!s) seasonTotals.set(team, (s = { games: 0, steadyGames: 0, allPlays: 0, dropbacks: 0, neutral: 0, neutralPass: 0, passOe: 0, passOeN: 0, fourthGo: 0, fourthDecisions: 0, tempo: 0, tempoN: 0, st: 0, giveaways: 0, takeaways: 0, driveStart: 0, driveStartN: 0 }));
+    // Pace and style get the same discount, so a team that changed coordinators
+    // is described by how it plays now rather than how it played last November.
+    const w = seasonWeight(game);
+    s.games += w;
+    s.allPlays += u.allPlays * w;
+    s.dropbacks += u.dropbacks * w;
+    s.neutral += u.neutral * w;
+    s.neutralPass += u.neutralPass * w;
+    s.passOe += u.passOe * w;
+    s.passOeN += u.passOeN * w;
+    s.fourthGo += u.fourthGo * w;
+    s.fourthDecisions += u.fourthDecisions * w;
+    s.tempo += u.tempo * w;
+    s.tempoN += u.tempoN * w;
+    const sw = steadyWeight();
+    s.steadyGames += sw;
+    s.st += (u.stFor - u.stAgainst) * sw;
+    s.giveaways += u.giveaways * sw;
     const other = [...teams].find((t) => t !== team);
-    s.takeaways += units.get(key(game, other))?.giveaways ?? 0;
+    s.takeaways += (units.get(key(game, other))?.giveaways ?? 0) * sw;
     for (const d of u.drives.values()) {
-      if (d.startYards != null) { s.driveStart += 100 - d.startYards; s.driveStartN += 1; }
+      if (d.startYards != null) { s.driveStart += (100 - d.startYards) * sw; s.driveStartN += sw; }
     }
   }
 }
 
 /** Win-loss and scoring, counted from the same plays every other number came from. */
-const recordOf = (espnId) => {
+const recordOf = (espnId, live = false) => {
   const r = { wins: 0, losses: 0, confWins: 0, confLosses: 0, pointsFor: 0, pointsAgainst: 0 };
-  for (const f of finals.values()) {
+  for (const [id, f] of finals) {
+    if (currentGameIds.has(id) !== live) continue;
     const home = f.home === espnId;
     if (!home && f.away !== espnId) continue;
     const [pf, pa] = home ? [f.hs, f.as] : [f.as, f.hs];
@@ -313,7 +401,11 @@ const recordOf = (espnId) => {
   return r;
 };
 const records = {};
-for (const [espnId, id] of Object.entries(SEC_TEAM_IDS)) records[id] = recordOf(String(espnId));
+const liveRecords = {};
+for (const [espnId, id] of Object.entries(SEC_TEAM_IDS)) {
+  records[id] = recordOf(String(espnId));
+  liveRecords[id] = recordOf(String(espnId), true);
+}
 
 /* -------------------------------------------------------------------------- */
 /* 5. Returning production and talent, at the projected season's vintage       */
@@ -366,10 +458,10 @@ for (const [espnId, id] of Object.entries(SEC_TEAM_IDS)) {
     playsPerGame: r2(s.allPlays / s.games, 1),
     secondsPerPlay: r2(s.tempo / s.tempoN, 1),
     fourthDownGoRate: r2(s.fourthGo / s.fourthDecisions, 2),
-    turnoverMargin: r2((s.takeaways - s.giveaways) / s.games, 2),
+    turnoverMargin: r2((s.takeaways - s.giveaways) / s.steadyGames, 2),
     redZoneTdRate: pick(fits.redZoneTd, 'offense', t, 3),
     redZoneTdRateAllowed: pick(fits.redZoneTd, 'defense', t, 3),
-    stEpa: r2(s.st / s.games, 2),
+    stEpa: r2(s.st / s.steadyGames, 2),
     startingFieldPos: r2(s.driveStart / s.driveStartN, 1),
   };
 
@@ -387,7 +479,7 @@ for (const [espnId, id] of Object.entries(SEC_TEAM_IDS)) {
 
   audit.push({
     id, record: `${records[id].wins}-${records[id].losses}`,
-    ppg: r2(records[id].pointsFor / s.games, 1),
+    ppg: r2(records[id].pointsFor / Math.max(1, records[id].wins + records[id].losses), 1),
     offEpa: efficiency[id].offEpa, defEpa: efficiency[id].defEpa,
     net: r2(efficiency[id].offEpa - efficiency[id].defEpa, 3),
   });
@@ -396,6 +488,12 @@ for (const [espnId, id] of Object.entries(SEC_TEAM_IDS)) {
 const meta = {
   priorSeason: PRIOR_SEASON,
   projectionSeason: PROJECTION_SEASON,
+  /** Latest week of the season in progress that has been played. 0 = preseason. */
+  throughWeek,
+  /** Games played so far this season, across all of FBS. */
+  currentGames: currentGameCount,
+  /** What the preseason projection is worth once real games exist, in games. */
+  priorSeasonGames: PRIOR_SEASON_GAMES,
   plays: plays.length,
   scrimmagePlays: [...units.values()].reduce((n, u) => n + u.plays, 0),
   games: games.length,
@@ -426,9 +524,15 @@ const out = `/* eslint-disable */
  *
  *   npm run etl
  *
- * Built from ${meta.plays.toLocaleString()} plays of the ${PRIOR_SEASON} FBS season
- * (${meta.scrimmagePlays.toLocaleString()} of them plays from scrimmage), across ${meta.games.toLocaleString()} games and
- * ${meta.teams} teams, plus ${PROJECTION_SEASON} returning-production and recruiting files.
+ * Built from ${meta.plays.toLocaleString()} plays across ${meta.games.toLocaleString()} games and ${meta.teams} teams —
+ * the ${PRIOR_SEASON} season plus ${throughWeek ? `${currentGameCount} games of ${PROJECTION_SEASON} through week ${throughWeek}` : `no ${PROJECTION_SEASON} games yet`} —
+ * with ${PROJECTION_SEASON} returning-production and recruiting files.
+ *
+ * The two seasons are not averaged after the fact. Last season's games are
+ * discounted inside the same fit, to about ${PRIOR_SEASON_GAMES} games of weight in total, so the
+ * season in progress takes over on its own as it is played: its share is
+ * games / (games + ${PRIOR_SEASON_GAMES}). That trade-off is fitted, not chosen — see
+ * scripts/etl/inseason.mjs.
  *
  * Quality metrics are opponent-adjusted: each is fit as \`mu + offence − defence\`
  * over every FBS game in the season, ridge-regularised, with the ridge weight
@@ -455,7 +559,7 @@ export interface MeasuredTalent {
 
 /** How the measured layer was built — surfaced in the app's methodology page. */
 export const MEASURED_META = ${JSON.stringify(meta, null, 2).replace(/\n/g, '\n')} as const;
-${record('MEASURED_EFFICIENCY', 'EfficiencyProfile', efficiency, `Opponent-adjusted ${PRIOR_SEASON} efficiency, one entry per SEC team.`)}${record('MEASURED_RETURNING', 'MeasuredReturning', returningOut, `Share of ${PRIOR_SEASON} production returning to each ${PROJECTION_SEASON} roster.`)}${record('MEASURED_TALENT', 'MeasuredTalent', talentOut, `Four-year weighted recruiting composite at the ${PROJECTION_SEASON} vintage.`)}${record('MEASURED_RECORD', 'SeasonRecord', records, `Actual ${PRIOR_SEASON} results, counted off the play-by-play.`)}`;
+${record('MEASURED_EFFICIENCY', 'EfficiencyProfile', efficiency, `Opponent-adjusted ${PRIOR_SEASON} efficiency, one entry per SEC team.`)}${record('MEASURED_RETURNING', 'MeasuredReturning', returningOut, `Share of ${PRIOR_SEASON} production returning to each ${PROJECTION_SEASON} roster.`)}${record('MEASURED_TALENT', 'MeasuredTalent', talentOut, `Four-year weighted recruiting composite at the ${PROJECTION_SEASON} vintage.`)}${record('MEASURED_RECORD', 'SeasonRecord', records, `Actual ${PRIOR_SEASON} results, counted off the play-by-play.`)}${record('MEASURED_RECORD_CURRENT', 'SeasonRecord', liveRecords, `Results so far in ${PROJECTION_SEASON} — all zeroes until the season starts.`)}`;
 
 writeFileSync(OUT, out);
 console.log(`\nwrote ${OUT}`);
