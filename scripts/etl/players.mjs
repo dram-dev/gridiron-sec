@@ -19,38 +19,18 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { asyncBufferFromFile, parquetReadObjects } from 'hyparquet';
 import { compressors } from 'hyparquet-compressors';
-import { ALL_PLAYERS } from '../../src/data/players.ts';
+import { AUTHORED_PLAYERS } from '../../src/data/players.ts';
 import { TEAM_BY_ID } from '../../src/data/teams.ts';
 import { SOURCES, PRIOR_SEASON, PROJECTION_SEASON } from './sources.mjs';
+import { n, norm, makeReadPlays, accumulate } from './tally.mjs';
 import { existsSync } from 'node:fs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DATA = resolve(join(here, '../../.data'));
 const OUT = resolve(join(here, '../../src/data/measuredPlayers.ts'));
+const readPlays = makeReadPlays(DATA);
 
-const n = (v) => (v == null ? 0 : Number(v));
-const norm = (s) =>
-  (s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/\b(jr|sr|ii|iii|iv|v)\.?\b/g, '').replace(/[^a-z ]/g, '')
-    .replace(/\s+/g, ' ').trim();
 
-const COLUMNS = [
-  'game_id', 'pos_team_id', 'pos_team', 'def_pos_team', 'scrimmage_play', 'rush', 'pass', 'sack',
-  'EPA', 'EPA_success', 'EPA_explosive',
-  'rusher_player_id', 'rusher_player_name', 'yds_rushed', 'rush_td',
-  'passer_player_id', 'passer_player_name', 'pass_attempt', 'completion', 'pass_td', 'int', 'cpoe',
-  'receiver_player_id', 'receiver_player_name', 'target', 'yds_receiving',
-  'sack_player_id', 'sack_player_name',
-  'interception_player_id', 'interception_player_name',
-  'pass_breakup_player_id', 'pass_breakup_player_name',
-  'fumble_forced_player_id', 'fumble_forced_player_name',
-  'fg_kicker_player_id', 'fg_kicker_player_name', 'fg_attempt', 'fg_made', 'yds_fg',
-  'punter_player_id', 'punter_player_name', 'yds_punted',
-];
-
-const readPlays = async (file) => parquetReadObjects({
-  file: await asyncBufferFromFile(join(DATA, file)), compressors, columns: COLUMNS,
-});
 
 console.log(`reading ${SOURCES.pbp.file} …`);
 const priorPlays = await readPlays(SOURCES.pbp.file);
@@ -70,117 +50,6 @@ if (currentPlays.length) console.log(`  ${currentPlays.length.toLocaleString()} 
 /* Per-player accumulation, keyed by the source's own player id               */
 /* -------------------------------------------------------------------------- */
 
-const blank = () => ({
-  // Teams are tallied rather than overwritten: a player shows up on offence,
-  // on defence and on special teams, and the modal team is the real one.
-  name: '', teams: new Map(), games: new Set(),
-  carries: 0, rushYds: 0, rushTd: 0, rushEpa: 0, rushSuccess: 0, rushExplosive: 0,
-  dropbacks: 0, attempts: 0, completions: 0, passYds: 0, passTd: 0, ints: 0,
-  passEpa: 0, passSuccess: 0, cpoe: 0, cpoeN: 0, sacksTaken: 0,
-  targets: 0, receptions: 0, recYds: 0, recTd: 0, recEpa: 0, recSuccess: 0, recExplosive: 0,
-  sacks: 0, interceptions: 0, passBreakups: 0, forcedFumbles: 0,
-  fgAttempts: 0, fgMade: 0, fgYards: 0, fgLong: 0, punts: 0, puntYards: 0,
-});
-
-function accumulate(plays) {
-const players = new Map();
-// ESPN credits team rushes (kneels, aborted snaps) to a placeholder "TEAM".
-const REAL = (id, name) => id != null && name && norm(name) !== 'team';
-const get = (id, name, team, game) => {
-  const k = String(id);
-  let p = players.get(k);
-  if (!p) players.set(k, (p = blank()));
-  p.name = name;
-  if (team) p.teams.set(team, (p.teams.get(team) ?? 0) + 1);
-  p.games.add(String(game));
-  return p;
-};
-
-/** Team totals, so a usage share is measured against the team it was earned on. */
-const teamTotals = new Map();
-const teamOf = (t) => {
-  let s = teamTotals.get(t);
-  if (!s) teamTotals.set(t, (s = { carries: 0, targets: 0, attempts: 0 }));
-  return s;
-};
-
-for (const p of plays) {
-  if (p.scrimmage_play !== true) {
-    // Defensive credits can land on special-teams plays too; take them anyway.
-  }
-  const team = p.pos_team;
-  const game = p.game_id;
-  const epa = n(p.EPA);
-  const success = p.EPA_success === true;
-  const explosive = p.EPA_explosive === true;
-
-  if (REAL(p.rusher_player_id, p.rusher_player_name)) {
-    const r = get(p.rusher_player_id, p.rusher_player_name, team, game);
-    r.carries += 1;
-    r.rushYds += n(p.yds_rushed);
-    r.rushTd += p.rush_td === true ? 1 : 0;
-    r.rushEpa += epa;
-    r.rushSuccess += success ? 1 : 0;
-    r.rushExplosive += explosive ? 1 : 0;
-    teamOf(team).carries += 1;
-  }
-
-  if (REAL(p.passer_player_id, p.passer_player_name)) {
-    const q = get(p.passer_player_id, p.passer_player_name, team, game);
-    q.dropbacks += 1;
-    q.passEpa += epa;
-    q.passSuccess += success ? 1 : 0;
-    if (p.sack === true) q.sacksTaken += 1;
-    if (p.pass_attempt === true) { q.attempts += 1; teamOf(team).attempts += 1; }
-    if (p.completion === true) { q.completions += 1; q.passYds += n(p.yds_receiving); }
-    if (p.pass_td === true) q.passTd += 1;
-    if (p.int === true) q.ints += 1;
-    if (p.cpoe != null) { q.cpoe += Number(p.cpoe); q.cpoeN += 1; }
-  }
-
-  if (REAL(p.receiver_player_id, p.receiver_player_name)) {
-    const w = get(p.receiver_player_id, p.receiver_player_name, team, game);
-    w.targets += 1;
-    w.recEpa += epa;
-    w.recSuccess += success ? 1 : 0;
-    if (explosive) w.recExplosive += 1;
-    if (p.completion === true) {
-      w.receptions += 1;
-      w.recYds += n(p.yds_receiving);
-      if (p.pass_td === true) w.recTd += 1;
-    }
-    teamOf(team).targets += 1;
-  }
-
-  if (REAL(p.fg_kicker_player_id, p.fg_kicker_player_name) && p.fg_attempt === true) {
-    const k = get(p.fg_kicker_player_id, p.fg_kicker_player_name, team, game);
-    k.fgAttempts += 1;
-    if (p.fg_made === true) {
-      k.fgMade += 1;
-      k.fgYards += n(p.yds_fg);
-      k.fgLong = Math.max(k.fgLong, n(p.yds_fg));
-    }
-  }
-  if (REAL(p.punter_player_id, p.punter_player_name)) {
-    const k = get(p.punter_player_id, p.punter_player_name, team, game);
-    k.punts += 1;
-    k.puntYards += n(p.yds_punted);
-  }
-
-  // Defensive credits are recorded against the defence, not the possessing team.
-  for (const [role, field] of [['sack', 'sacks'], ['interception', 'interceptions'],
-    ['pass_breakup', 'passBreakups'], ['fumble_forced', 'forcedFumbles']]) {
-    const id = p[`${role}_player_id`];
-    const name = p[`${role}_player_name`];
-    if (!REAL(id, name)) continue;
-    // A defensive credit belongs to the defence, not the team with the ball.
-    const d = get(id, name, p.def_pos_team, game);
-    d[field] += 1;
-  }
-}
-
-return { players, teamTotals };
-}
 
 const prior = accumulate(priorPlays);
 const current = accumulate(currentPlays);
@@ -217,7 +86,7 @@ const out = {};
 const unmatched = [];
 let ambiguousResolved = 0;
 
-for (const player of ALL_PLAYERS) {
+for (const player of AUTHORED_PLAYERS) {
   const candidates = byName.get(norm(player.name)) ?? [];
   if (!candidates.length) { unmatched.push(player); continue; }
 
@@ -307,9 +176,9 @@ const unmatched = priorResolved.unmatched;
 const ambiguousResolved = priorResolved.ambiguousResolved;
 
 const matched = Object.keys(out).length;
-console.log(`  matched ${matched}/${ALL_PLAYERS.length} roster players (${ambiguousResolved} by school)`);
+console.log(`  matched ${matched}/${AUTHORED_PLAYERS.length} roster players (${ambiguousResolved} by school)`);
 const byPos = {};
-for (const p of ALL_PLAYERS) {
+for (const p of AUTHORED_PLAYERS) {
   const g = byPos[p.position] ??= { n: 0, hit: 0 };
   g.n += 1;
   if (out[p.id]) g.hit += 1;
@@ -343,7 +212,7 @@ writeFileSync(OUT, `/* eslint-disable */
  *
  * Every ${PRIOR_SEASON} snap a rostered player was directly involved in, counted off the
  * play-by-play: carries, targets, dropbacks, the EPA on those plays, and the
- * share of the team's usage they took. ${matched} of ${ALL_PLAYERS.length} rostered players are
+ * share of the team's usage they took. ${matched} of ${AUTHORED_PLAYERS.length} rostered players are
  * matched. Transfers carry the production they earned at the school they left.
  *
  * Offensive linemen are absent by construction — play-by-play never names them.

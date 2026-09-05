@@ -16,7 +16,8 @@ import { asyncBufferFromFile, parquetReadObjects } from 'hyparquet';
 import { compressors } from 'hyparquet-compressors';
 import { fitEffects, selectLambda } from './adjust.mjs';
 import {
-  SOURCES, SEC_TEAM_IDS, PRIOR_SEASON, PROJECTION_SEASON, PRIOR_SEASON_GAMES, SEASON_GAMES,
+  SOURCES, TEAM_IDS, CONFERENCES, CONFERENCE_OF, PRIOR_SEASON, PROJECTION_SEASON,
+  PRIOR_SEASON_GAMES, SEASON_GAMES,
 } from './sources.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -70,6 +71,39 @@ if (currentPlays.length) {
 const currentGameIds = new Set(currentPlays.map((p) => String(p.game_id)));
 const plays = [...priorPlays, ...currentPlays];
 
+/* -------------------------------------------------------------------------- */
+/* 1b. Who is actually FBS, and which games were played at a neutral site      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every schedule row carries a division for both teams. Without it the fit has
+ * no way to tell an FCS opponent from a bad FBS one, and the ridge term then
+ * shrinks each FCS team toward the FBS mean — quietly rewarding a team for
+ * beating a cupcake as though it had beaten an average FBS opponent.
+ *
+ * Rather than throw those games away, every FCS team is pooled into a single
+ * opponent. One effect estimated from a hundred games is an honest measurement
+ * of what the FCS level is worth; a hundred effects estimated from one game
+ * each are just the prior. The games stay in, and stop lying.
+ */
+const scheduleRows = [
+  ...(await read('schedulePrior')),
+  ...(existsSync(join(DATA, SOURCES.schedule.file)) ? await read('schedule') : []),
+];
+
+const FBS = new Set();
+const neutralGames = new Set();
+for (const g of scheduleRows) {
+  if (g.home_division === 'fbs') FBS.add(String(num(g.home_id)));
+  if (g.away_division === 'fbs') FBS.add(String(num(g.away_id)));
+  if (g.neutral_site === true) neutralGames.add(String(num(g.game_id)));
+}
+console.log(`  ${FBS.size} FBS teams, ${neutralGames.size} neutral-site games`);
+
+/** Collapse every non-FBS opponent onto one pooled team. */
+const FCS = 'FCS';
+const pool = (teamId) => (FBS.has(teamId) ? teamId : FCS);
+
 /**
  * No garbage-time filter — and that is a measured decision, not an oversight.
  *
@@ -122,20 +156,38 @@ const ordered = plays.slice().sort(
 /** Final scores, read off the last play of each game. */
 /** @type {Map<string, {home:string, away:string, hs:number, as:number, n:number, conference:boolean}>} */
 const finals = new Map();
+/*
+ * Take the highest score either side reached, not the score on the last play.
+ *
+ * Scores only go up, so the maximum is the final — and in an overtime game the
+ * last play's score field can lag the result that decided it. Reading the last
+ * play recorded four 2025 games as draws, including Rutgers at Purdue and
+ * Michigan State at Iowa, which handed both sides a loss and put conference
+ * wins and losses permanently out of balance.
+ */
 for (const p of plays) {
   const g = String(p.game_id);
   const n = num(p.game_play_number) ?? 0;
   const cur = finals.get(g);
-  if (cur && n <= cur.n) continue;
   const home = String(p.homeTeamId);
   const away = String(p.awayTeamId);
+  if (cur) {
+    cur.hs = Math.max(cur.hs, num(p['end.homeScore']) ?? 0);
+    cur.as = Math.max(cur.as, num(p['end.awayScore']) ?? 0);
+    if (n > cur.n) cur.n = n;
+    continue;
+  }
   finals.set(g, {
     home, away, n,
     hs: num(p['end.homeScore']) ?? 0,
     as: num(p['end.awayScore']) ?? 0,
-    // A conference game is two SEC teams in the regular season; the title game
-    // is postseason and does not count toward a conference record.
-    conference: home in SEC_TEAM_IDS && away in SEC_TEAM_IDS && num(p.seasonType) === 2,
+    // A conference game is two teams from the *same* conference in the regular
+    // season; the title game is postseason and does not count toward a record.
+    // With two conferences in the pool this can no longer just test membership.
+    conference:
+      home in TEAM_IDS && away in TEAM_IDS &&
+      CONFERENCE_OF[TEAM_IDS[home]] === CONFERENCE_OF[TEAM_IDS[away]] &&
+      num(p.seasonType) === 2,
   });
 }
 
@@ -311,6 +363,11 @@ function driveRate(u, flag, field) {
   return n > 0 ? total / n : 0;
 }
 
+const r2 = (v, digits) => {
+  const f = 10 ** digits;
+  return Math.round(v * f) / f;
+};
+
 const LAMBDA_GRID = [25, 50, 100, 200, 400, 800, 1600];
 /** @type {Record<string, ReturnType<typeof fitEffects>>} */ const fits = {};
 /** @type {Record<string, {lambda:number, error:number}>} */ const tuning = {};
@@ -326,7 +383,7 @@ for (const [name, m] of Object.entries(METRICS)) {
       const weight = raw * seasonWeight(game);
       const value = m.rate(u);
       if (!Number.isFinite(value) || weight <= 0) continue;
-      obs.push({ game, off, def, value, weight, raw });
+      obs.push({ game, off: pool(off), def: pool(def), value, weight, raw });
     }
   }
   // Discounting last season shrinks every weight, which would silently make a
@@ -345,6 +402,93 @@ for (const [name, m] of Object.entries(METRICS)) {
     `  ${name.padEnd(11)} n=${String(obs.length).padStart(5)}  mu=${fits[name].mu.toFixed(4)}  ` +
     `lambda=${String(picked.lambda).padStart(4)}  cv=${picked.error.toFixed(5)}`,
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 3b. Where each conference actually sits, in points                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The model builds a rating from standardised components, so the pool average
+ * lands on zero by construction — which would claim these conferences are an
+ * average FBS league. Something has to say how far above average they really
+ * are, and it used to be a single authored constant.
+ *
+ * Measure it instead, on the same principle as everything else here: fit
+ * `margin = mu + team[i] − team[j]` over every FBS game, ridge-regularised,
+ * with home advantage removed first. Feeding each game from both sides makes
+ * the design symmetric, so a team's effect is its scoring margin against an
+ * average FBS opponent on a neutral field — points, directly, with no
+ * EPA-to-points conversion invented along the way.
+ *
+ * A conference's anchor is then just the mean of its members' effects.
+ */
+/**
+ * Home advantage and team strength have to be fitted together, not in sequence.
+ *
+ * The raw average home margin is about six points, and taking that as the home
+ * effect is a trap: teams buy home games against weaker opponents, so part of
+ * that margin is "the home team was better", not "the home team was home".
+ * Subtract all six and every team is charged for a schedule it did not choose.
+ *
+ * So alternate. Fit team effects at the current home number, then re-measure
+ * the home number as what is left over once those effects explain the game,
+ * and repeat. Five passes is far more than it needs; it settles in two.
+ */
+const homeGames = [...finals].filter(
+  ([game, f]) => FBS.has(f.home) && FBS.has(f.away) && !neutralGames.has(game),
+);
+
+const MARGIN_GRID = [0.5, 1, 2, 4, 8, 16, 32, 64];
+const buildMarginObs = (h) => {
+  const obs = [];
+  for (const [game, f] of finals) {
+    // A neutral-site game gets no home adjustment, because nobody was home.
+    const value = (f.hs - f.as) - (neutralGames.has(game) ? 0 : h);
+    const w = seasonWeight(game);
+    const [a, b] = [pool(f.home), pool(f.away)];
+    obs.push({ game, off: a, def: b, value, weight: w, raw: 1 });
+    obs.push({ game, off: b, def: a, value: -value, weight: w, raw: 1 });
+  }
+  return obs;
+};
+
+let hfa = homeGames.reduce((t, [, f]) => t + (f.hs - f.as), 0) / Math.max(1, homeGames.length);
+let marginFit;
+let marginPick;
+for (let iter = 0; iter < 5; iter += 1) {
+  const obs = buildMarginObs(hfa);
+  marginPick = selectLambda(obs, MARGIN_GRID);
+  marginFit = fitEffects(obs, { lambda: marginPick.lambda });
+  const eff = (t) => (marginFit.offense.get(t) ?? marginFit.mu) - marginFit.mu;
+  // What the home team won by, beyond what the two teams' strengths explain.
+  const residual = homeGames.reduce(
+    (t, [, f]) => t + ((f.hs - f.as) - (eff(f.home) - eff(f.away))), 0,
+  ) / Math.max(1, homeGames.length);
+  if (Math.abs(residual - hfa) < 0.01) { hfa = residual; break; }
+  hfa = residual;
+}
+
+// Re-centre on the FBS teams themselves, so zero means "an average FBS team"
+// rather than "the average of everyone the fit happened to see", which the
+// pooled FCS entry would otherwise drag downward.
+const rawStrength = (t) => (marginFit.offense.get(t) ?? marginFit.mu) - marginFit.mu;
+const fbsIds = [...FBS];
+const fbsMean = fbsIds.reduce((t, id) => t + rawStrength(id), 0) / Math.max(1, fbsIds.length);
+const strength = (t) => rawStrength(t) - fbsMean;
+
+const anchors = {};
+for (const [key, conf] of Object.entries(CONFERENCES)) {
+  const vals = Object.keys(conf.teams).map((t) => strength(t));
+  anchors[key] = r2(vals.reduce((a, b) => a + b, 0) / vals.length, 2);
+}
+console.log(
+  `\n  anchor       n=${String(finals.size).padStart(5)} games  hfa=${hfa.toFixed(2)}  ` +
+  `lambda=${String(marginPick.lambda).padStart(4)}  rmse=${Math.sqrt(marginPick.error).toFixed(2)}`,
+);
+console.log(`    FCS pool  ${strength(FCS).toFixed(2)} pts/game vs an average FBS team`);
+for (const [key, v] of Object.entries(anchors)) {
+  console.log(`    ${CONFERENCES[key].name.padEnd(8)} ${v > 0 ? '+' : ''}${v.toFixed(2)} pts/game vs an average FBS team`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -402,7 +546,7 @@ const recordOf = (espnId, live = false) => {
 };
 const records = {};
 const liveRecords = {};
-for (const [espnId, id] of Object.entries(SEC_TEAM_IDS)) {
+for (const [espnId, id] of Object.entries(TEAM_IDS)) {
   records[id] = recordOf(String(espnId));
   liveRecords[id] = recordOf(String(espnId), true);
 }
@@ -421,10 +565,6 @@ const talentById = byId(talent);
 /* 6. Emit                                                                     */
 /* -------------------------------------------------------------------------- */
 
-const r2 = (v, digits) => {
-  const f = 10 ** digits;
-  return Math.round(v * f) / f;
-};
 const pick = (fit, side, team, digits) => r2(fit[side].get(team) ?? fit.mu, digits);
 
 const efficiency = {};
@@ -432,7 +572,7 @@ const returningOut = {};
 const talentOut = {};
 const audit = [];
 
-for (const [espnId, id] of Object.entries(SEC_TEAM_IDS)) {
+for (const [espnId, id] of Object.entries(TEAM_IDS)) {
   const t = String(espnId);
   const s = seasonTotals.get(t);
   if (!s) throw new Error(`no 2025 games found for ${id} (espn ${espnId})`);
@@ -518,6 +658,22 @@ ${Object.entries(rows).map(([id, v]) => `  ${id}: {\n${block(v, '    ')}\n  },`)
 };
 `;
 
+/* Identity for every FBS team, taken from the schedule rows. */
+const teamMeta = new Map();
+for (const g of scheduleRows) {
+  for (const side of ['home', 'away']) {
+    const id = String(num(g[`${side}_id`]));
+    if (g[`${side}_division`] !== 'fbs' || teamMeta.has(id)) continue;
+    teamMeta.set(id, { name: g[`${side}_team`], conference: g[`${side}_conference`] ?? 'FBS' });
+  }
+}
+
+const opponentRatings = {};
+for (const [id, meta] of [...teamMeta].sort((a, b) => strength(b[0]) - strength(a[0]))) {
+  opponentRatings[id] = { name: meta.name, conference: meta.conference, rating: r2(strength(id), 1) };
+}
+opponentRatings.FCS = { name: 'FCS opponent', conference: 'FCS', rating: r2(strength(FCS), 1) };
+
 const out = `/* eslint-disable */
 /* ============================================================================
  * GENERATED FILE — do not edit by hand.
@@ -559,7 +715,34 @@ export interface MeasuredTalent {
 
 /** How the measured layer was built — surfaced in the app's methodology page. */
 export const MEASURED_META = ${JSON.stringify(meta, null, 2).replace(/\n/g, '\n')} as const;
-${record('MEASURED_EFFICIENCY', 'EfficiencyProfile', efficiency, `Opponent-adjusted ${PRIOR_SEASON} efficiency, one entry per SEC team.`)}${record('MEASURED_RETURNING', 'MeasuredReturning', returningOut, `Share of ${PRIOR_SEASON} production returning to each ${PROJECTION_SEASON} roster.`)}${record('MEASURED_TALENT', 'MeasuredTalent', talentOut, `Four-year weighted recruiting composite at the ${PROJECTION_SEASON} vintage.`)}${record('MEASURED_RECORD', 'SeasonRecord', records, `Actual ${PRIOR_SEASON} results, counted off the play-by-play.`)}${record('MEASURED_RECORD_CURRENT', 'SeasonRecord', liveRecords, `Results so far in ${PROJECTION_SEASON} — all zeroes until the season starts.`)}`;
+
+/**
+ * Points per game each conference is worth above an average FBS team, fitted
+ * from scoring margins across every FBS game with home advantage removed.
+ *
+ * The model's components are standardised, so they place the pool average at
+ * zero. These numbers are what move it back to where the results say it
+ * belongs, and they are the only thing separating the two conferences on an
+ * absolute scale — no margin *inside* a conference depends on them.
+ */
+export const MEASURED_ANCHOR = ${JSON.stringify(anchors, null, 2)} as const;
+
+/** Home-field advantage across the same games, in points. */
+export const MEASURED_HFA = ${r2(hfa, 2)};
+
+/**
+ * Every FBS team's scoring margin against an average FBS opponent on a neutral
+ * field, from the same fit the conference anchors come from.
+ *
+ * This is what a non-conference opponent is worth. Those ratings used to be
+ * authored one by one, on a scale that had drifted well away from the one the
+ * projection itself uses; here they are the projection's own scale by
+ * construction, so a September opponent and a November one are directly
+ * comparable.
+ */
+export const MEASURED_OPPONENT: Record<string, { name: string; conference: string; rating: number }> =
+  ${JSON.stringify(opponentRatings, null, 2)};
+${record('MEASURED_EFFICIENCY', 'EfficiencyProfile', efficiency, `Opponent-adjusted ${PRIOR_SEASON} efficiency, one entry per projected team.`)}${record('MEASURED_RETURNING', 'MeasuredReturning', returningOut, `Share of ${PRIOR_SEASON} production returning to each ${PROJECTION_SEASON} roster.`)}${record('MEASURED_TALENT', 'MeasuredTalent', talentOut, `Four-year weighted recruiting composite at the ${PROJECTION_SEASON} vintage.`)}${record('MEASURED_RECORD', 'SeasonRecord', records, `Actual ${PRIOR_SEASON} results, counted off the play-by-play.`)}${record('MEASURED_RECORD_CURRENT', 'SeasonRecord', liveRecords, `Results so far in ${PROJECTION_SEASON} — all zeroes until the season starts.`)}`;
 
 writeFileSync(OUT, out);
 console.log(`\nwrote ${OUT}`);

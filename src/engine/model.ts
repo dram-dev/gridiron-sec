@@ -1,7 +1,8 @@
 import { COACH_BY_TEAM } from '../data/coaches';
 import { POSITION_SIDE, ROSTERS } from '../data/players';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
-import type { Coach, Player, RatingComponents, Team, TeamId } from '../data/types';
+import { MEASURED_ANCHOR } from '../data/measured';
+import type { Coach, Conference, Player, RatingComponents, Team, TeamId } from '../data/types';
 
 /* ============================================================================
  * The model.
@@ -56,8 +57,13 @@ export interface ModelCoefficients {
    * A first-time coach carries no record signal at all, which is honest.
    */
   coachRegression: number;
-  /** Where the conference average sits, in points above an average FBS team. */
-  leagueAnchor: number;
+  /**
+   * Multiplier on the measured conference anchors. The anchors themselves are
+   * fitted from scoring margins (see MEASURED_ANCHOR); this exists so a scenario
+   * can ask what happens if a conference is stronger or weaker than the results
+   * so far suggest. At 1 it changes nothing.
+   */
+  anchorScale: number;
 }
 
 /**
@@ -108,7 +114,7 @@ export const DEFAULT_COEFFICIENTS: ModelCoefficients = {
   coachScale: 0.78,
   transitionWeight: 0.62,
   coachRegression: 24,
-  leagueAnchor: 13.6,
+  anchorScale: 1,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -279,13 +285,21 @@ const sumComponents = (k: RatingComponents) =>
 export function deriveAll(c: ModelCoefficients = DEFAULT_COEFFICIENTS): Record<TeamId, Derived> {
   const m = leagueMoments(c);
 
-  const raw = TEAMS.map((t) => deriveComponents(t, c, m));
-  const meanTotal = raw.reduce((s, d) => s + sumComponents(d.components), 0) / raw.length;
-  const offset = c.leagueAnchor - meanTotal;
+  // Each conference is moved onto its own measured anchor. Standardised inputs
+  // are centred on zero across the whole pool, so without this the model would
+  // claim these two conferences average out to an ordinary FBS team, and that
+  // the gap between them is zero. Both are false, and both are measurable.
+  const raw = new Map(TEAMS.map((t) => [t.id, sumComponents(deriveComponents(t, c, m).components)]));
+  const offset = {} as Record<Conference, number>;
+  for (const conf of Object.keys(MEASURED_ANCHOR) as Conference[]) {
+    const members = TEAMS.filter((t) => t.conference === conf);
+    const mean = members.reduce((s, t) => s + (raw.get(t.id) ?? 0), 0) / Math.max(1, members.length);
+    offset[conf] = MEASURED_ANCHOR[conf] * c.anchorScale - mean;
+  }
 
   const out = {} as Record<TeamId, Derived>;
   TEAMS.forEach((t) => {
-    out[t.id] = deriveComponents(t, c, m, offset);
+    out[t.id] = deriveComponents(t, c, m, offset[t.conference]);
   });
   return out;
 }

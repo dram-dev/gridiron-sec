@@ -18,7 +18,9 @@
     "etl:backtest": "node --max-old-space-size=8000 scripts/etl/backtest.mjs",
     "etl:weekly": "npm run etl:fetch && npm run etl && npm run typecheck && npm test && npm run build",
     "etl:inseason": "node --max-old-space-size=8000 scripts/etl/inseason.mjs",
-    "etl:snapshot": "vite-node scripts/etl/snapshot.mjs"
+    "etl:snapshot": "vite-node scripts/etl/snapshot.mjs",
+    "etl:rosters": "vite-node scripts/etl/rosters.mjs",
+    "etl:schedule": "vite-node scripts/etl/schedule.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

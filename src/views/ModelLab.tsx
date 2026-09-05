@@ -5,6 +5,7 @@ import {
   AnimatedNumber, Divider, InfoDot, Label, Panel, PanelHead, Slider, Stat,
   Table, Td, Th, TeamMark,
 } from '../components/ui';
+import { MEASURED_ANCHOR } from '../data/measured';
 import { ROSTERS } from '../data/players';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
 import type { TeamId } from '../data/types';
@@ -94,9 +95,9 @@ const SPECS: CoefficientSpec[] = [
     hint: 'Multiplier on the installation cost charged to a first-year staff.',
   },
   {
-    key: 'leagueAnchor', label: 'Conference average', group: 'Calibration',
-    min: 0, max: 24, step: 0.1, format: (v) => `${signed(v)} vs FBS`,
-    hint: 'Where the conference mean sits against an average FBS team. Shifts all sixteen equally, so it changes nothing between two conference teams — only games against outside opponents.',
+    key: 'anchorScale', label: 'Conference strength', group: 'Calibration',
+    min: 0, max: 2, step: 0.01, format: (v) => `${v.toFixed(2)}×`,
+    hint: 'Multiplier on each conference’s measured anchor — the scoring margin its teams post against an average FBS team, fitted from results. At 1.00 the projection uses what the games say. Moving it changes nothing between two teams in the same conference; it only affects games across conferences and against outside opponents.',
   },
 ];
 
@@ -141,7 +142,7 @@ export function ModelLab() {
       return c.offense + c.defense + c.specialTeams + c.coaching +
         c.returningProduction + c.portalRecruiting + c.quarterback;
     };
-    return SPECS.filter((sp) => sp.key !== 'leagueAnchor').map((sp) => {
+    return SPECS.filter((sp) => sp.key !== 'anchorScale').map((sp) => {
       const bumped = deriveAll({ ...coeffs, [sp.key]: coeffs[sp.key] * 1.5 || 0.1 });
       const delta = sum(bumped, inspect) - sum(base, inspect);
       return { key: sp.key, label: sp.label, delta };
@@ -176,7 +177,8 @@ export function ModelLab() {
               tone: (rho >= baselineRho - 0.02 ? 'accent' : 'negative') as 'accent' | 'negative',
             },
             { l: 'Conference spread', v: `${num(spread)} pts`, s: 'best to worst, neutral field' },
-            { l: 'Conference average', v: signed(coeffs.leagueAnchor), s: 'against an average FBS team' },
+            { l: 'SEC anchor', v: signed(MEASURED_ANCHOR.SEC * coeffs.anchorScale), s: 'measured, against an average FBS team' },
+            { l: 'Big Ten anchor', v: signed(MEASURED_ANCHOR.B1G * coeffs.anchorScale), s: 'measured, against an average FBS team' },
             { l: 'Coefficients changed', v: String(dirty.length), s: dirty.length ? 'from the defaults' : 'running the defaults' },
             { l: 'Rating constants in data', v: '0', s: 'nothing is authored per team' },
           ].map((x) => (

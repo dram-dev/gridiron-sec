@@ -1,6 +1,6 @@
 import { ALL_GAMES, CONFERENCE_GAMES, WEEKS } from '../data/schedule';
 import { TEAMS } from '../data/teams';
-import type { Game, TeamId } from '../data/types';
+import type { Game, TeamId, Conference } from '../data/types';
 import { GAME_SIGMA, TEAM_SIGMA } from './constants';
 import { projectGame, resolveRated, type GameProjection } from './game';
 import type { RatingTable } from './ratings';
@@ -114,6 +114,20 @@ interface PreparedGame {
 
 const TEAM_INDEX: Record<string, number> = Object.fromEntries(TEAMS.map((t, i) => [t.id, i]));
 const N = TEAMS.length;
+
+/**
+ * Team indices grouped by conference.
+ *
+ * A standing is a statement about one conference, not about the pool. With two
+ * of them, every ranking below is computed inside a group and every conference
+ * plays its own championship game — so "first in the conference" means first
+ * among sixteen or first among eighteen, never first among thirty-four.
+ */
+const CONFERENCES: Conference[] = [...new Set(TEAMS.map((t) => t.conference))];
+const GROUP: number[][] = CONFERENCES.map((c) =>
+  TEAMS.map((t, i) => (t.conference === c ? i : -1)).filter((i) => i >= 0),
+);
+
 
 /** Teams coming off a bye in a given week, derived from the schedule itself. */
 export function computeRested(): Map<number, Set<string>> {
@@ -304,17 +318,21 @@ export function simulateSeason(
           }
           gi++;
         }
-        // Standing after this week, by conference winning percentage.
-        const rank = Array.from({ length: N }, (_, i) => i).sort((a, b) => {
-          const pa = cw2[a] / Math.max(1, cw2[a] + cl2[a]);
-          const pb = cw2[b] / Math.max(1, cw2[b] + cl2[b]);
-          if (pb !== pa) return pb - pa;
-          if (w2[b] !== w2[a]) return w2[b] - w2[a];
-          return ratingArr[b] - ratingArr[a];
-        });
-        for (let pos = 0; pos < N; pos++) {
-          const base = (it * N + rank[pos]) * WEEK_COUNT + (wk - 1);
-          posPath[base] = pos + 1;
+        // Standing after this week, by conference winning percentage — inside
+        // each conference separately, which is the only place a standing means
+        // anything.
+        for (const group of GROUP) {
+          const rank = [...group].sort((a, b) => {
+            const pa = cw2[a] / Math.max(1, cw2[a] + cl2[a]);
+            const pb = cw2[b] / Math.max(1, cw2[b] + cl2[b]);
+            if (pb !== pa) return pb - pa;
+            if (w2[b] !== w2[a]) return w2[b] - w2[a];
+            return ratingArr[b] - ratingArr[a];
+          });
+          for (let pos = 0; pos < rank.length; pos++) {
+            const base = (it * N + rank[pos]) * WEEK_COUNT + (wk - 1);
+            posPath[base] = pos + 1;
+          }
         }
         for (let i = 0; i < N; i++) {
           winPath[(it * N + i) * WEEK_COUNT + (wk - 1)] = w2[i];
@@ -326,36 +344,41 @@ export function simulateSeason(
     // Ties are broken by head-to-head record among the tied group, then by
     // overall record, then by rating — a faithful simplification of the SEC's
     // published multi-step procedure.
-    const order = Array.from({ length: N }, (_, i) => i);
-    order.sort((a, b) => {
-      const pa = cw[a] / Math.max(1, cw[a] + cl[a]);
-      const pb = cw[b] / Math.max(1, cw[b] + cl[b]);
-      if (pb !== pa) return pb - pa;
-      const h = head[b * N + a] - head[a * N + b];
-      if (h !== 0) return h;
-      if (w[b] !== w[a]) return w[b] - w[a];
-      return ratingArr[b] - ratingArr[a];
-    });
-
-    for (let pos = 0; pos < N; pos++) finishDist[order[pos]][pos]++;
-
-    const first = order[0];
-    const second = order[1];
-    titleGame[first]++;
-    titleGame[second]++;
-    const key = first < second ? `${first}:${second}` : `${second}:${first}`;
-    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
-
-    // Record regular-season wins before the championship game is played.
+    // Record regular-season wins before any championship game is played.
     for (let i = 0; i < N; i++) regularWinDist[i][Math.min(12, w[i])]++;
 
-    // Championship game at a neutral site: rating gap plus season-level form.
-    const cMargin =
-      ratingArr[first] - ratingArr[second] + adj[first] - adj[second] + gauss() * GAME_SIGMA;
-    const champIdx = cMargin > 0 ? first : second;
-    champion[champIdx]++;
-    w[champIdx]++;
-    if (champIdx === first) l[second]++; else l[first]++;
+    // Each conference ranks its own members and stages its own title game.
+    const champions: number[] = [];
+    for (const group of GROUP) {
+      const order = [...group].sort((a, b) => {
+        const pa = cw[a] / Math.max(1, cw[a] + cl[a]);
+        const pb = cw[b] / Math.max(1, cw[b] + cl[b]);
+        if (pb !== pa) return pb - pa;
+        const h = head[b * N + a] - head[a * N + b];
+        if (h !== 0) return h;
+        if (w[b] !== w[a]) return w[b] - w[a];
+        return ratingArr[b] - ratingArr[a];
+      });
+
+      for (let pos = 0; pos < order.length; pos++) finishDist[order[pos]][pos]++;
+
+      const first = order[0];
+      const second = order[1];
+      titleGame[first]++;
+      titleGame[second]++;
+      const key = first < second ? `${first}:${second}` : `${second}:${first}`;
+      pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+
+      // Championship game at a neutral site: rating gap plus season-level form.
+      const cMargin =
+        ratingArr[first] - ratingArr[second] + adj[first] - adj[second] + gauss() * GAME_SIGMA;
+      const champIdx = cMargin > 0 ? first : second;
+      champion[champIdx]++;
+      w[champIdx]++;
+      if (champIdx === first) l[second]++; else l[first]++;
+      champions.push(champIdx);
+    }
+    const champSet = new Set(champions);
 
     // Conditional title odds: attribute this season's champion to each game's
     // realised outcome, so the two halves can be compared afterwards.
@@ -363,8 +386,8 @@ export function simulateSeason(
       const gi = confGameIdx[k];
       const g = games[gi];
       const homeWon = gameHomeWon[gi] === 1;
-      const homeChamp = champIdx === g.homeIdx ? 1 : 0;
-      const awayChamp = champIdx === g.awayIdx ? 1 : 0;
+      const homeChamp = champSet.has(g.homeIdx) ? 1 : 0;
+      const awayChamp = champSet.has(g.awayIdx) ? 1 : 0;
       if (homeWon) {
         levWin[gi]++;
         levHomeChampOnWin[gi] += homeChamp;
@@ -384,7 +407,7 @@ export function simulateSeason(
       if (w[i] >= 6) bowlEligible[i]++;
       if (l[i] === 0) undefeated[i]++;
       if (cw[i] === 0) winlessConf[i]++;
-      if (rng() < playoffProbability(w[i], l[i], champIdx === i, ratingArr[i])) playoff[i]++;
+      if (rng() < playoffProbability(w[i], l[i], champSet.has(i), ratingArr[i])) playoff[i]++;
     }
   }
 

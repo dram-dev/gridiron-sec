@@ -3,6 +3,7 @@ import type {
   PlayerUsage, Position, Provenance, TeamId,
 } from './types';
 import { MEASURED_PLAYERS, MEASURED_PLAYERS_CURRENT } from './measuredPlayers';
+import { MEASURED_ROSTERS } from './measuredRosters';
 
 /* ============================================================================
  * Rosters — the player layer.
@@ -970,7 +971,15 @@ const ARK: Seed[] = [
 
 /* -------------------------------------------------------------------------- */
 
-export const ROSTERS: Record<TeamId, Player[]> = {
+/**
+ * The sixteen SEC rosters are authored two-deeps that the play-by-play then
+ * overwrites wherever it reaches. The eighteen Big Ten rosters are the reverse:
+ * built from the published roster file and joined to the play-by-play on the
+ * source's own athlete id, so nobody typed a name or a number into them. See
+ * scripts/etl/rosters.mjs — and `provenance` on any player, which says which
+ * of the two a given row came from.
+ */
+const AUTHORED_ROSTERS = {
   UGA: build('UGA', UGA),
   TEX: build('TEX', TEX),
   TAM: build('TAM', TAM),
@@ -987,9 +996,23 @@ export const ROSTERS: Record<TeamId, Player[]> = {
   UK: build('UK', UK),
   MSST: build('MSST', MSST),
   ARK: build('ARK', ARK),
+} satisfies Partial<Record<TeamId, Player[]>>;
+
+export const ROSTERS: Record<TeamId, Player[]> = {
+  ...(MEASURED_ROSTERS as Record<TeamId, Player[]>),
+  ...AUTHORED_ROSTERS,
 };
 
 export const ALL_PLAYERS: Player[] = Object.values(ROSTERS).flat();
+
+/**
+ * Only the authored rosters — the ones whose measurement comes from matching a
+ * typed name against the play-by-play. The derived rosters are already joined
+ * on the source's own athlete id, so putting them back through the name matcher
+ * would be both wasted work and a second, slightly different answer to a
+ * question that already has one.
+ */
+export const AUTHORED_PLAYERS: Player[] = Object.values(AUTHORED_ROSTERS).flat();
 
 export const PLAYER_BY_ID: Record<string, Player> = Object.fromEntries(
   ALL_PLAYERS.map((p) => [p.id, p]),

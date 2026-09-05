@@ -11,9 +11,18 @@
 
 export type Provenance = 'measured' | 'verified' | 'modeled';
 
-export type TeamId =
+/** The two conferences the app projects. */
+export type Conference = 'SEC' | 'B1G';
+
+export type SecTeamId =
   | 'ALA' | 'ARK' | 'AUB' | 'FLA' | 'UGA' | 'UK' | 'LSU' | 'MISS'
   | 'MSST' | 'MIZ' | 'OU' | 'SC' | 'TENN' | 'TEX' | 'TAM' | 'VAN';
+
+export type BigTenTeamId =
+  | 'ILL' | 'IND' | 'IOWA' | 'MD' | 'MICH' | 'MSU' | 'MINN' | 'NEB' | 'NW'
+  | 'OSU' | 'ORE' | 'PSU' | 'PUR' | 'RUT' | 'UCLA' | 'USC' | 'WASH' | 'WISC';
+
+export type TeamId = SecTeamId | BigTenTeamId;
 
 export type Position =
   | 'QB' | 'RB' | 'WR' | 'TE' | 'OT' | 'IOL'
@@ -169,6 +178,7 @@ export interface SeasonRecord {
 
 export interface Team {
   id: TeamId;
+  conference: Conference;
   school: string;
   mascot: string;
   abbr: string;
@@ -191,7 +201,11 @@ export interface Team {
   /** Preseason poll and computer-rating anchors, for model-vs-market contrast. */
   apPreseason: number | null;
   spPlusRank: number | null;
-  /** Three annual conference opponents under the 2026 nine-game format. */
+  /**
+   * Protected annual conference opponents. The SEC guarantees three under its
+   * 2026 nine-game format; the Big Ten protects a shorter, uneven list, so this
+   * is not the same length for every team and is empty for some.
+   */
   annualOpponents: TeamId[];
   outlook: string;
   strengths: string[];
@@ -396,6 +410,10 @@ export interface Game {
   conferenceGame: boolean;
   rivalry?: string;
   headline?: boolean;
+  /** Set once the game has been played, with the result from the same source. */
+  completed?: boolean;
+  homePoints?: number;
+  awayPoints?: number;
 }
 
 export interface WeekMeta {

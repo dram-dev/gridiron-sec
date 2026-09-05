@@ -58,11 +58,68 @@ export const SOURCES = {
     url: `${BASE}/cfb_team_talent/parquet/cfb_team_talent_${PROJECTION_SEASON}.parquet`,
     what: 'Four-year weighted recruiting composite and blue-chip ratio for each 2026 roster.',
   },
+  roster: {
+    file: `cfb_rosters_${PRIOR_SEASON}.parquet`,
+    url: `${BASE}/cfb_rosters/parquet/cfb_rosters_${PRIOR_SEASON}.parquet`,
+    what: 'Every rostered FBS player in 2025 with position, jersey and class — carries the same athlete id the play-by-play does.',
+  },
+  schedulePrior: {
+    file: `cfb_schedules_${PRIOR_SEASON}.parquet`,
+    url: `${BASE}/cfb_schedules/parquet/cfb_schedules_${PRIOR_SEASON}.parquet`,
+    what: 'Every 2025 game with division, conference and neutral-site flags — what tells an FBS opponent from an FCS one.',
+  },
+  schedule: {
+    file: `cfb_schedules_${PROJECTION_SEASON}.parquet`,
+    url: `${BASE}/cfb_schedules/parquet/cfb_schedules_${PROJECTION_SEASON}.parquet`,
+    what: 'The full 2026 slate for both conferences: opponents, sites, kickoff dates, and results as they are played.',
+  },
 };
 
-/** ESPN team id → app team id, for the sixteen SEC programs. */
-export const SEC_TEAM_IDS = {
-  333: 'ALA', 8: 'ARK', 2: 'AUB', 57: 'FLA', 61: 'UGA', 96: 'UK', 99: 'LSU',
-  145: 'MISS', 344: 'MSST', 142: 'MIZ', 201: 'OU', 2579: 'SC', 2633: 'TENN',
-  251: 'TEX', 245: 'TAM', 238: 'VAN',
+/* -------------------------------------------------------------------------- */
+/* The pool                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The two conferences the app projects, ESPN team id → app team id.
+ *
+ * The opponent adjustment in adjust.mjs has always been fitted over every FBS
+ * game, not just these — that is the whole point of removing a schedule. What
+ * this map decides is only which teams get written out at the end. Adding the
+ * Big Ten therefore changes no SEC number: the same fit, surfaced wider.
+ */
+export const CONFERENCES = {
+  SEC: {
+    name: 'SEC',
+    /** How the schedule mirror spells it, for joining on conference. */
+    sourceName: 'SEC',
+    championship: { venue: 'Mercedes-Benz Stadium', city: 'Atlanta, GA' },
+    teams: {
+      333: 'ALA', 8: 'ARK', 2: 'AUB', 57: 'FLA', 61: 'UGA', 96: 'UK', 99: 'LSU',
+      145: 'MISS', 344: 'MSST', 142: 'MIZ', 201: 'OU', 2579: 'SC', 2633: 'TENN',
+      251: 'TEX', 245: 'TAM', 238: 'VAN',
+    },
+  },
+  B1G: {
+    name: 'Big Ten',
+    sourceName: 'Big Ten',
+    championship: { venue: 'Lucas Oil Stadium', city: 'Indianapolis, IN' },
+    teams: {
+      356: 'ILL', 84: 'IND', 2294: 'IOWA', 120: 'MD', 130: 'MICH', 127: 'MSU',
+      135: 'MINN', 158: 'NEB', 77: 'NW', 194: 'OSU', 2483: 'ORE', 213: 'PSU',
+      2509: 'PUR', 164: 'RUT', 26: 'UCLA', 30: 'USC', 264: 'WASH', 275: 'WISC',
+    },
+  },
 };
+
+/** Every projected team, ESPN id → app id. */
+export const TEAM_IDS = Object.fromEntries(
+  Object.values(CONFERENCES).flatMap((c) => Object.entries(c.teams)),
+);
+
+/** App team id → conference key. */
+export const CONFERENCE_OF = Object.fromEntries(
+  Object.entries(CONFERENCES).flatMap(([key, c]) => Object.values(c.teams).map((id) => [id, key])),
+);
+
+/** Kept for the back-test, which walks seasons when the pool was SEC-only. */
+export const SEC_TEAM_IDS = CONFERENCES.SEC.teams;

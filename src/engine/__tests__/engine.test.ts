@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CONFERENCE_GAMES, ALL_GAMES, NON_CONFERENCE_GAMES } from '../../data/schedule';
+import { MEASURED_ANCHOR } from '../../data/measured';
 import { TEAMS, TEAM_BY_ID } from '../../data/teams';
 import { COACHES } from '../../data/coaches';
 import { ALL_PLAYERS, ROSTERS } from '../../data/players';
@@ -19,9 +20,24 @@ import { COACH_BY_TEAM } from '../../data/coaches';
 const scenario = makeBaselineScenario();
 const ratings = rateAll(scenario);
 
+/** Find a scheduled game by its two teams — ids come from the source now. */
+const fixture = (a: string, b: string) => {
+  const g = ALL_GAMES.find(
+    (x) => (x.homeId === a && x.awayId === b) || (x.homeId === b && x.awayId === a),
+  );
+  if (!g) throw new Error(`no ${a} v ${b} fixture on the 2026 schedule`);
+  return g;
+};
+
 describe('schedule integrity', () => {
-  it('has exactly 72 conference games', () => {
-    expect(CONFERENCE_GAMES).toHaveLength(72);
+  const CONF_SIZE = { SEC: 16, B1G: 18 } as const;
+  const inPool = new Set(TEAMS.map((t) => t.id as string));
+  const confOf = Object.fromEntries(TEAMS.map((t) => [t.id as string, t.conference]));
+
+  it('has a full round of conference games for both conferences', () => {
+    // Nine conference games each, counted once per game rather than per team.
+    const expected = Object.values(CONF_SIZE).reduce((t, n) => t + (n * 9) / 2, 0);
+    expect(CONFERENCE_GAMES).toHaveLength(expected);
   });
 
   it('gives every team exactly nine conference games and twelve total', () => {
@@ -33,7 +49,7 @@ describe('schedule integrity', () => {
     }
   });
 
-  it('honours all three annual opponents for every team', () => {
+  it('honours every protected annual opponent', () => {
     for (const t of TEAMS) {
       for (const opp of t.annualOpponents) {
         const found = CONFERENCE_GAMES.some(
@@ -45,13 +61,22 @@ describe('schedule integrity', () => {
     }
   });
 
-  it('never schedules a team twice in the same week', () => {
-    const seen = new Set<string>();
+  it('never schedules a team twice inside the same few days', () => {
+    // Not "once per numbered week": a team opening in Week 0 has two games the
+    // source labels week 1, seven days apart, and takes an extra bye for it.
+    // The real constraint is turnaround time, so that is what this checks.
+    const dates = new Map<string, number[]>();
     for (const g of ALL_GAMES) {
       for (const side of [g.homeId, g.awayId]) {
-        const key = `${side}@${g.week}`;
-        expect(seen.has(key), `${side} double-booked in week ${g.week}`).toBe(false);
-        seen.add(key);
+        if (!inPool.has(side)) continue;
+        const day = Date.parse(g.date) / 86_400_000;
+        (dates.get(side) ?? dates.set(side, []).get(side)!).push(day);
+      }
+    }
+    for (const [team, days] of dates) {
+      days.sort((a, b) => a - b);
+      for (let i = 1; i < days.length; i += 1) {
+        expect(days[i] - days[i - 1], `${team} plays twice inside four days`).toBeGreaterThan(4);
       }
     }
   });
@@ -61,13 +86,23 @@ describe('schedule integrity', () => {
     expect(new Set(pairs).size).toBe(pairs.length);
   });
 
-  it('has no conference game marked non-conference or vice versa', () => {
-    const ids = new Set(TEAMS.map((t) => t.id as string));
+  it('marks a game as conference only when both teams share one', () => {
+    // Two projected teams from different conferences is a real fixture and a
+    // non-conference game — the distinction pool membership used to stand in
+    // for, and cannot any more.
     for (const g of CONFERENCE_GAMES) {
-      expect(ids.has(g.homeId) && ids.has(g.awayId)).toBe(true);
+      expect(inPool.has(g.homeId) && inPool.has(g.awayId), `${g.id}`).toBe(true);
+      expect(confOf[g.homeId], `${g.id}`).toBe(confOf[g.awayId]);
     }
     for (const g of NON_CONFERENCE_GAMES) {
-      expect(ids.has(g.homeId) && ids.has(g.awayId)).toBe(false);
+      const both = inPool.has(g.homeId) && inPool.has(g.awayId);
+      if (both) expect(confOf[g.homeId], `${g.id} crosses conferences`).not.toBe(confOf[g.awayId]);
+    }
+  });
+
+  it('puts every team in exactly one conference', () => {
+    for (const [conf, size] of Object.entries(CONF_SIZE)) {
+      expect(TEAMS.filter((t) => t.conference === conf), conf).toHaveLength(size);
     }
   });
 });
@@ -160,10 +195,17 @@ describe('ratings', () => {
     }
   });
 
-  it('ranks Georgia first in the baseline', () => {
+  it('puts a credible team at the top of each conference', () => {
+    // Not a fixed name: the point is that the ordering is produced, not
+    // authored, so this pins the shape rather than a particular season's
+    // answer. Both leaders must clear the field by a real margin.
     const ranked = rankRatings(ratings, ratings);
-    expect(ranked[0].teamId).toBe('UGA');
-    expect(ranked[ranked.length - 1].teamId).toBe('ARK');
+    for (const conf of ['SEC', 'B1G'] as const) {
+      const inConf = ranked.filter((r) => TEAM_BY_ID[r.teamId].conference === conf);
+      expect(inConf.length, conf).toBeGreaterThan(15);
+      expect(inConf[0].total - inConf[inConf.length - 1].total, conf).toBeGreaterThan(15);
+    }
+    expect(ranked[0].total).toBeGreaterThan(ranked[ranked.length - 1].total);
   });
 
   it('reports no rank movement when the scenario is the baseline', () => {
@@ -217,10 +259,16 @@ describe('the derivation', () => {
     }
   });
 
-  it('anchors the conference average on the coefficient', () => {
-    const totals = TEAMS.map((t) => ratings[t.id].total);
-    const mean = totals.reduce((a, b) => a + b, 0) / totals.length;
-    expect(mean).toBeCloseTo(DEFAULT_COEFFICIENTS.leagueAnchor, 6);
+  it('anchors each conference on its own measured margin', () => {
+    // The anchors are fitted from scoring margins across every FBS game, so a
+    // conference's mean rating should land on its own anchor and not on the
+    // other one's — that separation is the only thing carrying the difference
+    // between the two leagues on an absolute scale.
+    for (const conf of ['SEC', 'B1G'] as const) {
+      const members = TEAMS.filter((t) => t.conference === conf);
+      const mean = members.reduce((a, t) => a + ratings[t.id].total, 0) / members.length;
+      expect(mean, conf).toBeCloseTo(MEASURED_ANCHOR[conf], 6);
+    }
   });
 
   it('spans the range the market actually prices this conference at', () => {
@@ -332,7 +380,7 @@ describe('the derivation', () => {
 });
 
 describe('game model', () => {
-  const game = CONFERENCE_GAMES.find((g) => g.id.includes('UGA-ALA'))!;
+  const game = fixture('UGA', 'ALA');
 
   it('projects a margin equal to the rating gap plus home field', () => {
     const p = projectGame(game, ratings, scenario);
@@ -353,8 +401,13 @@ describe('game model', () => {
   });
 
   it('gives no home-field advantage at a neutral site', () => {
-    const redRiver = CONFERENCE_GAMES.find((g) => g.rivalry === 'Red River Rivalry')!;
-    expect(projectGame(redRiver, ratings, scenario).hfa).toBe(0);
+    // The schedule carries neutral sites from the source, so take whichever
+    // games are actually played at one rather than naming a rivalry.
+    const neutral = ALL_GAMES.filter((g) => g.neutralSite);
+    expect(neutral.length).toBeGreaterThan(0);
+    for (const g of neutral) {
+      expect(projectGame(g, ratings, scenario).hfa, g.id).toBe(0);
+    }
   });
 
   it('inverts points-per-drive correctly', () => {
@@ -412,19 +465,33 @@ describe('season simulation', () => {
   const result = simulateSeason(rateAll(s), s);
 
   it('assigns exactly one champion per simulated season', () => {
+    // One champion per conference, so two across the pool.
     const total = TEAMS.reduce((acc, t) => acc + result.teams[t.id].pChampion, 0);
-    expect(total).toBeCloseTo(1, 6);
-  });
-
-  it('sends exactly two teams to the title game per season', () => {
-    const total = TEAMS.reduce((acc, t) => acc + result.teams[t.id].pTitleGame, 0);
     expect(total).toBeCloseTo(2, 6);
+    for (const conf of ['SEC', 'B1G'] as const) {
+      const inConf = TEAMS.filter((t) => t.conference === conf)
+        .reduce((acc, t) => acc + result.teams[t.id].pChampion, 0);
+      expect(inConf, conf).toBeCloseTo(1, 6);
+    }
   });
 
-  it('fills every finishing position exactly once per season', () => {
-    for (let pos = 0; pos < TEAMS.length; pos++) {
-      const total = TEAMS.reduce((acc, t) => acc + result.teams[t.id].finishDistribution[pos], 0);
-      expect(total, `position ${pos + 1}`).toBeCloseTo(1, 6);
+  it('sends exactly two teams to each conference title game', () => {
+    for (const conf of ['SEC', 'B1G'] as const) {
+      const total = TEAMS.filter((t) => t.conference === conf)
+        .reduce((acc, t) => acc + result.teams[t.id].pTitleGame, 0);
+      expect(total, conf).toBeCloseTo(2, 6);
+    }
+  });
+
+  it('fills every finishing position exactly once in each conference', () => {
+    // A standing belongs to a conference, so first place is filled once inside
+    // each of them — never once across the pool.
+    for (const conf of ['SEC', 'B1G'] as const) {
+      const members = TEAMS.filter((t) => t.conference === conf);
+      for (let pos = 0; pos < members.length; pos++) {
+        const total = members.reduce((acc, t) => acc + result.teams[t.id].finishDistribution[pos], 0);
+        expect(total, `${conf} position ${pos + 1}`).toBeCloseTo(1, 6);
+      }
     }
   });
 
@@ -445,14 +512,21 @@ describe('season simulation', () => {
 
   it('conserves total wins across the league', () => {
     const total = TEAMS.reduce((s, t) => s + result.teams[t.id].meanWins, 0);
-    // 72 conference wins + one championship + non-conference wins.
-    expect(total).toBeGreaterThan(100);
-    expect(total).toBeLessThan(125);
+    // 153 conference wins, two championship games, and whatever the 99
+    // non-conference games return — bounded below by the conference slate
+    // alone and above by winning every outside game as well.
+    expect(total).toBeGreaterThan(153 + 2);
+    expect(total).toBeLessThan(153 + 2 + 99);
   });
 
-  it('ranks Georgia as the championship favourite', () => {
-    const ordered = TEAMS.map((t) => result.teams[t.id]).sort((a, b) => b.pChampion - a.pChampion);
-    expect(ordered[0].teamId).toBe('UGA');
+  it('makes the top-rated team in each conference its title favourite', () => {
+    for (const conf of ['SEC', 'B1G'] as const) {
+      const members = TEAMS.filter((t) => t.conference === conf);
+      const byRating = [...members].sort((a, b) => ratings[b.id].total - ratings[a.id].total);
+      const byOdds = members.map((t) => result.teams[t.id])
+        .sort((a, b) => b.pChampion - a.pChampion);
+      expect(byOdds[0].teamId, conf).toBe(byRating[0].id);
+    }
   });
 
   it('is deterministic for a given seed', () => {
@@ -467,7 +541,7 @@ describe('season simulation', () => {
   });
 
   it('honours a forced result', () => {
-    const game = CONFERENCE_GAMES.find((g) => g.id === 'w6-UGA-ALA')!;
+    const game = fixture('UGA', 'ALA');
     const forced = { ...s, forcedResults: { [game.id]: 'home' as const } };
     const out = simulateSeason(rateAll(forced), forced);
     const uga = out.teams.UGA.gameWinProbs.find((g) => g.gameId === game.id)!;
@@ -488,9 +562,15 @@ describe('season simulation', () => {
   });
 
   it('reports a bounded playoff bid count for the league', () => {
-    const bids = TEAMS.reduce((acc, t) => acc + result.teams[t.id].pPlayoff, 0);
-    expect(bids).toBeGreaterThan(1.5);
-    expect(bids).toBeLessThan(5);
+    // Twelve playoff places exist and these two conferences do not get all of
+    // them. Bounded per conference, so adding a third would not silently widen
+    // what counts as reasonable.
+    for (const conf of ['SEC', 'B1G'] as const) {
+      const bids = TEAMS.filter((t) => t.conference === conf)
+        .reduce((acc, t) => acc + result.teams[t.id].pPlayoff, 0);
+      expect(bids, conf).toBeGreaterThan(1.5);
+      expect(bids, conf).toBeLessThan(5);
+    }
   });
 });
 
@@ -548,12 +628,17 @@ describe('season trajectories and leverage', () => {
   });
 
   it('assigns exactly one team to each standing every week', () => {
-    // Medians can tie, but the mean position across all teams must be the mean
-    // of 1..16 at every week if each position was filled exactly once.
-    const expected = (TEAMS.length + 1) / 2;
-    for (let w = 0; w < 13; w++) {
-      const mean = TEAMS.reduce((acc, t) => acc + result.trajectories[t.id].position[w].mean, 0) / TEAMS.length;
-      expect(mean, `week ${w + 1}`).toBeCloseTo(expected, 6);
+    // Medians can tie, but if each position was filled exactly once the mean
+    // standing inside a conference is the mean of 1..n at every week — 8.5 for
+    // sixteen teams, 9.5 for eighteen.
+    for (const conf of ['SEC', 'B1G'] as const) {
+      const members = TEAMS.filter((t) => t.conference === conf);
+      const expected = (members.length + 1) / 2;
+      for (let w = 0; w < 13; w++) {
+        const mean = members.reduce(
+          (acc, t) => acc + result.trajectories[t.id].position[w].mean, 0) / members.length;
+        expect(mean, `${conf} week ${w + 1}`).toBeCloseTo(expected, 6);
+      }
     }
   });
 
