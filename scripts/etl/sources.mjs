@@ -14,6 +14,13 @@ export const PRIOR_SEASON = 2025;
 /** The season being projected — returning production and talent use this vintage. */
 export const PROJECTION_SEASON = 2026;
 
+/**
+ * Seasons the back-test walks over. Each season's projection is built from the
+ * season before it and scored on results it never saw. Fetch with
+ * `node scripts/etl/fetch.mjs --backtest`.
+ */
+export const BACKTEST_SEASONS = [2021, 2022, 2023, 2024, 2025];
+
 export const SOURCES = {
   pbp: {
     file: `play_by_play_${PRIOR_SEASON}.parquet`,

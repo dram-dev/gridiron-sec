@@ -13,7 +13,19 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SOURCES } from './sources.mjs';
+import { SOURCES, BACKTEST_SEASONS } from './sources.mjs';
+
+const BASE = 'https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/main/cfb';
+/** The extra seasons `npm run etl:backtest` needs — about 210 MB more. */
+const backtestSources = () =>
+  BACKTEST_SEASONS.flatMap((y) => [
+    { file: `play_by_play_${y}.parquet`, url: `${BASE}/pbp/parquet/play_by_play_${y}.parquet`,
+      what: `Every play of the ${y} FBS season.` },
+    { file: `cfb_returning_production_${y}.parquet`, url: `${BASE}/cfb_returning_production/parquet/cfb_returning_production_${y}.parquet`,
+      what: `Returning production at the ${y} vintage.` },
+    { file: `cfb_team_talent_${y}.parquet`, url: `${BASE}/cfb_team_talent/parquet/cfb_team_talent_${y}.parquet`,
+      what: `Recruiting composite at the ${y} vintage.` },
+  ]);
 
 const here = dirname(fileURLToPath(import.meta.url));
 const i = process.argv.indexOf('--data');
@@ -22,7 +34,11 @@ mkdirSync(DATA, { recursive: true });
 
 const mb = (n) => `${(n / 1e6).toFixed(1)} MB`;
 
-for (const { file, url, what } of Object.values(SOURCES)) {
+const wanted = process.argv.includes('--backtest')
+  ? [...Object.values(SOURCES), ...backtestSources()]
+  : Object.values(SOURCES);
+
+for (const { file, url, what } of wanted) {
   const dest = join(DATA, file);
   if (existsSync(dest) && statSync(dest).size > 0) {
     console.log(`have  ${file.padEnd(42)} ${mb(statSync(dest).size)}`);
