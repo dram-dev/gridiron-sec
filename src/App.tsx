@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CommandPalette } from './components/CommandPalette';
 import {
   IconBook, IconClipboard, IconGauge, IconMenu, IconMoon, IconPerson, IconReset,
-  IconSearch, IconShield, IconSliders, IconSun, IconSwords,
+  IconSearch, IconShield, IconSliders, IconSpark, IconSun, IconSwords,
 } from './components/icons';
 import { useStore, type ViewId } from './state/store';
 import { CommandCenter } from './views/CommandCenter';
@@ -12,6 +12,7 @@ import { MatchupLab } from './views/MatchupLab';
 import { CoachIntel } from './views/CoachIntel';
 import { ScenarioStudio } from './views/ScenarioStudio';
 import { Methodology } from './views/Methodology';
+import { HowItWorks } from './views/HowItWorks';
 
 const NAV: { id: ViewId; label: string; icon: typeof IconGauge; hint: string }[] = [
   { id: 'command', label: 'Command Center', icon: IconGauge, hint: 'League overview' },
@@ -20,7 +21,8 @@ const NAV: { id: ViewId; label: string; icon: typeof IconGauge; hint: string }[]
   { id: 'matchup', label: 'Matchup', icon: IconSwords, hint: 'Head-to-head' },
   { id: 'coach', label: 'Coach Intel', icon: IconClipboard, hint: 'Staff tendencies' },
   { id: 'scenario', label: 'Scenario Studio', icon: IconSliders, hint: 'What-if planning' },
-  { id: 'method', label: 'Methodology', icon: IconBook, hint: 'How this works' },
+  { id: 'how', label: 'How this works', icon: IconSpark, hint: 'The model, explained' },
+  { id: 'method', label: 'Methodology', icon: IconBook, hint: 'Constants and sources' },
 ];
 
 const TITLES: Record<ViewId, { title: string; blurb: string }> = {
@@ -30,6 +32,7 @@ const TITLES: Record<ViewId, { title: string; blurb: string }> = {
   matchup: { title: 'Matchup Simulator', blurb: 'Any two teams, simulated drive by drive' },
   coach: { title: 'Coach Intelligence', blurb: 'The part of a program that survives roster turnover' },
   scenario: { title: 'Scenario Studio', blurb: 'Change an assumption and watch the season move' },
+  how: { title: 'How this works', blurb: 'The projection engine and the design, explained end to end' },
   method: { title: 'Methodology', blurb: 'Every constant, every source, every limitation' },
 };
 
@@ -219,6 +222,7 @@ export default function App() {
             {view === 'matchup' && <MatchupLab />}
             {view === 'coach' && <CoachIntel />}
             {view === 'scenario' && <ScenarioStudio />}
+            {view === 'how' && <HowItWorks />}
             {view === 'method' && <Methodology />}
           </div>
         </main>

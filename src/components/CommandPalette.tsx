@@ -25,7 +25,8 @@ const VIEWS: { id: ViewId; label: string; sub: string }[] = [
   { id: 'matchup', label: 'Matchup Simulator', sub: 'Head-to-head simulation' },
   { id: 'coach', label: 'Coach Intelligence', sub: 'Staff tendencies and archetypes' },
   { id: 'scenario', label: 'Scenario Studio', sub: 'What-if planning' },
-  { id: 'method', label: 'Methodology', sub: 'How the model works' },
+  { id: 'how', label: 'How this works', sub: 'The projection engine and the design, explained' },
+  { id: 'method', label: 'Methodology', sub: 'Constants, sources and limitations' },
 ];
 
 export function CommandPalette() {

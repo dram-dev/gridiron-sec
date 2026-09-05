@@ -2,6 +2,7 @@ import {
   createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState,
   type ReactNode,
 } from 'react';
+import { PLAYER_BY_ID } from '../data/players';
 import type { Availability, TeamId } from '../data/types';
 import { rateAll, rankRatings, type RankedRating, type RatingTable } from '../engine/ratings';
 import { projectAllGames, simulateSeason, type SeasonResult } from '../engine/season';
@@ -11,6 +12,7 @@ import {
   type Scenario, type TeamOverride, type Weather,
 } from '../engine/scenario';
 import SeasonWorker from '../workers/season.worker?worker&inline';
+import { buildHash, parseHash, type ViewId } from '../lib/routing';
 import type { Mode } from '../lib/viz';
 
 /* ============================================================================
@@ -21,8 +23,7 @@ import type { Mode } from '../lib/viz';
  * scenario changed rather than only what it produced.
  * ========================================================================== */
 
-export type ViewId =
-  | 'command' | 'team' | 'player' | 'matchup' | 'coach' | 'scenario' | 'method';
+export type { ViewId } from '../lib/routing';
 
 interface State {
   view: ViewId;
@@ -70,12 +71,17 @@ function initial(): State {
   } catch {
     /* storage can throw in private modes; the resolved default stands */
   }
+  const route = typeof window !== 'undefined' ? parseHash(window.location.hash) : null;
+  const routedPlayer = route?.playerId ? PLAYER_BY_ID[route.playerId] : undefined;
+
   return {
-    view: 'command',
+    view: route?.view ?? 'command',
     scenario: makeBaselineScenario(),
-    selectedTeam: 'UGA',
-    comparisonTeam: 'ALA',
-    selectedPlayerId: null,
+    // A player link also selects that player's team, so the rest of the app is
+    // pointed somewhere sensible when the reader navigates away.
+    selectedTeam: route?.teamId ?? routedPlayer?.teamId ?? 'UGA',
+    comparisonTeam: route?.comparisonTeam ?? 'ALA',
+    selectedPlayerId: route?.playerId ?? null,
     comparePlayerIds: [],
     selectedGameId: null,
     theme,
@@ -250,6 +256,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const handle = setTimeout(() => runOnMainThread(id, scenario), 0);
     return () => clearTimeout(handle);
   }, [scenario, runOnMainThread]);
+
+  // Keep the URL and the view in step, in both directions. `suppress` stops the
+  // write-back from re-triggering the hashchange listener that produced it.
+  const suppressHash = useRef(false);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      if (suppressHash.current) {
+        suppressHash.current = false;
+        return;
+      }
+      const route = parseHash(window.location.hash);
+      if (!route) return;
+      if (route.teamId) dispatch({ type: 'selectTeam', teamId: route.teamId });
+      if (route.comparisonTeam) dispatch({ type: 'comparisonTeam', teamId: route.comparisonTeam });
+      if (route.playerId) dispatch({ type: 'selectPlayer', playerId: route.playerId });
+      dispatch({ type: 'view', view: route.view });
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  useEffect(() => {
+    const next = buildHash({
+      view: state.view,
+      teamId: state.selectedTeam,
+      comparisonTeam: state.comparisonTeam,
+      playerId: state.selectedPlayerId ?? undefined,
+    });
+    if (window.location.hash !== next) {
+      suppressHash.current = true;
+      window.history.replaceState(null, '', next);
+      // replaceState does not fire hashchange, so clear the guard immediately.
+      suppressHash.current = false;
+    }
+  }, [state.view, state.selectedTeam, state.comparisonTeam, state.selectedPlayerId]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', state.theme);

@@ -255,6 +255,210 @@ input[type='range']::-moz-range-thumb {
   background: var(--accent-hi); border: 2px solid var(--bg-panel);
 }
 
+/* ============================================================================
+   How this works — an editorial register.
+
+   The rest of the app is an operating surface: dense, system font, tabular
+   numerals. This one page is a reading surface, so it gets a measure, a larger
+   body size and a condensed display face with scoreboard lineage — used for
+   numerals and headings here and nowhere else.
+   ========================================================================== */
+
+.hiw {
+  --measure: 68ch;
+  padding-bottom: 3rem;
+}
+
+.hiw-display {
+  font-family: 'Barlow Condensed', 'Oswald', 'Arial Narrow', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.hiw-eyebrow {
+  font-family: 'Barlow Condensed', 'Arial Narrow', ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-hi);
+}
+
+.hiw-measure { max-width: var(--measure); }
+
+.hiw-layout {
+  display: grid;
+  gap: 2.5rem;
+  align-items: start;
+}
+@media (min-width: 1180px) {
+  /* Bound the article column rather than letting it stretch, so the contents
+     rail sits beside the text instead of drifting to the far edge. */
+  .hiw-layout { grid-template-columns: minmax(0, 860px) 200px; justify-content: start; }
+  .hiw-rail { order: 2; position: sticky; top: 84px; }
+  .hiw-layout > article { order: 1; }
+}
+.hiw-rail { display: none; }
+@media (min-width: 1180px) { .hiw-rail { display: block; } }
+
+.hiw-section { margin-top: 3.25rem; scroll-margin-top: 84px; }
+
+.hiw-prose > p {
+  font-size: 15.5px;
+  line-height: 1.72;
+  color: var(--text);
+}
+.hiw-prose > p + p { margin-top: 1.05rem; }
+.hiw-prose em { font-style: italic; }
+
+.hiw-lead {
+  font-size: 17px !important;
+  line-height: 1.62 !important;
+  color: var(--text-hi) !important;
+}
+
+.hiw-sub {
+  font-family: 'Barlow Condensed', 'Arial Narrow', ui-sans-serif, system-ui, sans-serif;
+  font-size: 19px !important;
+  font-weight: 600;
+  color: var(--text-hi) !important;
+  margin-top: 1.9rem !important;
+  margin-bottom: -0.35rem;
+}
+
+.hiw-link {
+  color: var(--accent-hi);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+.hiw-link:hover { color: var(--text-hi); }
+
+/* Figures sit outside the prose measure. */
+.hiw-figure { margin: 1.85rem 0; max-width: var(--measure); }
+.hiw-figure-wide { max-width: min(100%, 940px); }
+.hiw-figure-body {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.15rem 1.25rem;
+  box-shadow: var(--shadow-panel);
+}
+.hiw-figure-caption {
+  margin-top: 0.7rem;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-low);
+  max-width: 62ch;
+}
+
+.hiw-calc-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.42rem 0;
+  font-size: 13.5px;
+}
+.hiw-calc-rule { border-top: 1px solid var(--line); margin-top: 0.15rem; padding-top: 0.55rem; }
+
+.hiw-formula {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--line-faint);
+  border-radius: 10px;
+  padding: 0.85rem 0.95rem;
+}
+
+.hiw-defs { margin: 1.4rem 0; display: grid; gap: 0.85rem; }
+.hiw-defs dt {
+  font-family: 'Barlow Condensed', 'Arial Narrow', ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+.hiw-defs dd { margin-top: 0.15rem; font-size: 14px; line-height: 1.6; color: var(--text-low); }
+
+.hiw-limits { margin: 1.3rem 0; display: grid; gap: 0.9rem; }
+.hiw-limits li {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text-low);
+  padding-left: 1rem;
+  border-left: 2px solid var(--line-strong);
+}
+.hiw-limits strong { color: var(--text-hi); font-weight: 600; }
+
+.hiw-spec { margin: 1.3rem 0; display: grid; gap: 0.55rem; }
+.hiw-spec li {
+  position: relative;
+  padding-left: 1.4rem;
+  font-size: 14.5px;
+  line-height: 1.62;
+  color: var(--text);
+}
+.hiw-spec li::before {
+  content: '';
+  position: absolute;
+  left: 0.25rem;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.hiw-numbered { margin: 1.3rem 0; display: grid; gap: 1rem; counter-reset: hiw; }
+.hiw-numbered li {
+  counter-increment: hiw;
+  position: relative;
+  padding-left: 2.1rem;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text-low);
+}
+.hiw-numbered li::before {
+  content: counter(hiw);
+  position: absolute;
+  left: 0;
+  top: -0.05em;
+  font-family: 'Barlow Condensed', 'Arial Narrow', ui-sans-serif, system-ui, sans-serif;
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.hiw-numbered strong { color: var(--text-hi); font-weight: 600; }
+
+.hiw-chain { display: grid; gap: 0.1rem; }
+.hiw-chain li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line-faint);
+}
+.hiw-chain li:last-child { border-bottom: 0; }
+.hiw-chain-n {
+  width: 1.4rem;
+  flex-shrink: 0;
+  font-size: 20px;
+  line-height: 1.15;
+  color: var(--accent);
+}
+
+.hiw-demo {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--line-faint);
+  border-radius: 10px;
+  padding: 0.85rem 0.9rem;
+}
+
+.hiw-ramp {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--line-faint);
+  border-radius: 10px;
+  padding: 0.9rem;
+}
+
 /* The skip link is visually hidden until focused. */
 .sr-only:focus,
 .sr-only:focus-visible {

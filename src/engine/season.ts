@@ -24,6 +24,12 @@ export interface TeamSeasonOutlook {
   meanConfWins: number;
   /** Probability of finishing with exactly n wins, index = wins. */
   winDistribution: number[];
+  /**
+   * Wins across the twelve regular-season games only, excluding the conference
+   * championship game. Comparable to a model that treats games as independent,
+   * which is what makes the effect of season-level correlation measurable.
+   */
+  regularWinDistribution: number[];
   confWinDistribution: number[];
   pTitleGame: number;
   pChampion: number;
@@ -161,6 +167,7 @@ export function simulateSeason(
   const totalConfWins = new Float64Array(N);
   // Thirteen regular-season slots plus a championship game win.
   const winDist: number[][] = TEAMS.map(() => new Array(14).fill(0));
+  const regularWinDist: number[][] = TEAMS.map(() => new Array(13).fill(0));
   const confWinDist: number[][] = TEAMS.map(() => new Array(10).fill(0));
   const finishDist: number[][] = TEAMS.map(() => new Array(N).fill(0));
   const titleGame = new Float64Array(N);
@@ -241,6 +248,9 @@ export function simulateSeason(
     const key = first < second ? `${first}:${second}` : `${second}:${first}`;
     pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
 
+    // Record regular-season wins before the championship game is played.
+    for (let i = 0; i < N; i++) regularWinDist[i][Math.min(12, w[i])]++;
+
     // Championship game at a neutral site: rating gap plus season-level form.
     const cMargin =
       ratingArr[first] - ratingArr[second] + adj[first] - adj[second] + gauss() * GAME_SIGMA;
@@ -286,6 +296,7 @@ export function simulateSeason(
       meanLosses: 12 - totalWins[i] / iterations,
       meanConfWins: totalConfWins[i] / iterations,
       winDistribution: winDist[i].map((v) => v / iterations),
+      regularWinDistribution: regularWinDist[i].map((v) => v / iterations),
       confWinDistribution: confWinDist[i].map((v) => v / iterations),
       pTitleGame: titleGame[i] / iterations,
       pChampion: champion[i] / iterations,

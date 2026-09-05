@@ -12,7 +12,7 @@ import { useStore } from '../state/store';
 /* The model, stated plainly enough to be argued with. */
 
 export function Methodology() {
-  const { season, state } = useStore();
+  const { season, state, go } = useStore();
   const verifiedPlayers = ALL_PLAYERS.filter((p) => p.provenance === 'verified').length;
 
   return (
@@ -20,6 +20,11 @@ export function Methodology() {
       {/* ---- Pipeline ------------------------------------------------------- */}
       <Panel>
         <PanelHead
+          right={
+            <button className="btn !py-1 !text-[11px]" onClick={() => go('how')}>
+              Read the long-form explainer →
+            </button>
+          }
           title="Three layers, in order"
           subtitle="Each layer takes the one above it as input. Nothing is fitted to a hidden training set — every number is either sourced, authored, or derived from the two."
         />

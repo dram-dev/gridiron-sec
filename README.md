@@ -19,8 +19,13 @@ per team, top two by conference winning percentage meet in Atlanta on 5 December
 | **Player Lab** | All 191 tracked players ranked by PAR, with season projections carrying 10th–90th percentile bands and per-week matchup difficulty |
 | **Matchup Simulator** | Any two teams, 30,000 drive-level simulations — margin distribution, most likely final scores, spread and total ladders, key player lines for both sides |
 | **Coach Intelligence** | Tendency profiles that survive roster turnover, career arcs, and the uncertainty premium on six first-year staffs |
+| **[How this works](https://dram-dev.github.io/gridiron-sec/#/how-it-works)** | Long-form explainer — the engine end to end, and the design decisions behind the interface |
 | **Scenario Studio** | Injury availability, per-team dials, league-wide conditions, and forced results for conditional odds |
 | **Methodology** | Every constant, every source, every limitation |
+
+Every view has its own URL. `#/team/UGA`, `#/player/miss-trinidad-chambliss` and
+`#/matchup/UGA/ALA` all open on the thing they name, so any state worth discussing is
+a link.
 
 ## The model
 
