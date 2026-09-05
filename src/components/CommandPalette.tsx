@@ -21,6 +21,7 @@ interface Entry {
 const VIEWS: { id: ViewId; label: string; sub: string }[] = [
   { id: 'command', label: 'Command Center', sub: 'League overview and power ratings' },
   { id: 'team', label: 'Team Lab', sub: 'Team-level forecasting' },
+  { id: 'trajectory', label: 'Trajectory', sub: 'Season win paths, the standings race and game leverage' },
   { id: 'player', label: 'Player Lab', sub: 'Player projections and value board' },
   { id: 'matchup', label: 'Matchup Simulator', sub: 'Head-to-head simulation' },
   { id: 'coach', label: 'Coach Intelligence', sub: 'Staff tendencies and archetypes' },

@@ -48,9 +48,52 @@ export interface TeamSeasonOutlook {
   gameWinProbs: { gameId: string; opponentId: string; home: boolean; week: number; probability: number }[];
 }
 
+/** One week of a fan chart: the distribution of a running quantity. */
+export interface TrajectoryPoint {
+  week: number;
+  p10: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p90: number;
+  mean: number;
+}
+
+export interface TeamTrajectory {
+  teamId: TeamId;
+  /** Cumulative wins after each week, as a distribution. */
+  wins: TrajectoryPoint[];
+  /** Conference standing after each week, 1 = first. Lower is better. */
+  position: TrajectoryPoint[];
+}
+
+/**
+ * How much a single game moves a participant's title chances.
+ *
+ * Computed by conditioning: the simulation set is partitioned on that game's
+ * outcome and the championship rate compared across the two halves. Because
+ * every other game still plays out inside each half, this is the game's actual
+ * marginal effect rather than a guess at its importance.
+ */
+export interface GameLeverage {
+  gameId: string;
+  week: number;
+  homeId: TeamId;
+  awayId: TeamId;
+  /** Home team's title probability when it wins, minus when it loses. */
+  homeSwing: number;
+  awaySwing: number;
+  /** Combined swing across both participants. */
+  leverage: number;
+  homeWinProbability: number;
+}
+
 export interface SeasonResult {
   iterations: number;
   teams: Record<TeamId, TeamSeasonOutlook>;
+  trajectories: Record<TeamId, TeamTrajectory>;
+  /** Conference games ranked by how much they move the title race. */
+  leverage: GameLeverage[];
   /** Most likely title-game pairings. */
   titleGamePairs: { a: TeamId; b: TeamId; probability: number }[];
   /** Elapsed wall time, milliseconds. */
@@ -180,6 +223,23 @@ export function simulateSeason(
   const pairCounts = new Map<string, number>();
   const gameWins = new Float64Array(games.length);
 
+  // Week-by-week paths. Cumulative wins and conference standing are recorded
+  // after every week so the season can be shown as a trajectory rather than
+  // only as an endpoint. Raw paths are reduced to quantiles before returning.
+  const WEEK_COUNT = WEEKS.length;
+  const winPath = new Uint8Array(iterations * N * WEEK_COUNT);
+  const posPath = new Uint8Array(iterations * N * WEEK_COUNT);
+
+  // Leverage counters, per conference game, per participant.
+  const confGameIdx: number[] = [];
+  games.forEach((g, i) => { if (g.conference) confGameIdx.push(i); });
+  const levWin = new Float64Array(games.length);
+  const levHomeChampOnWin = new Float64Array(games.length);
+  const levHomeChampOnLoss = new Float64Array(games.length);
+  const levAwayChampOnWin = new Float64Array(games.length);
+  const levAwayChampOnLoss = new Float64Array(games.length);
+  const gameHomeWon = new Uint8Array(games.length);
+
   // Per-iteration scratch
   const adj = new Float64Array(N);
   const w = new Int32Array(N);
@@ -206,6 +266,7 @@ export function simulateSeason(
 
       const homeWon = margin > 0;
       if (homeWon) gameWins[gi]++;
+      gameHomeWon[gi] = homeWon ? 1 : 0;
 
       if (g.homeIdx >= 0) {
         if (homeWon) w[g.homeIdx]++; else l[g.homeIdx]++;
@@ -220,6 +281,43 @@ export function simulateSeason(
         } else {
           cw[g.awayIdx]++; cl[g.homeIdx]++;
           head[g.awayIdx * N + g.homeIdx] = 1;
+        }
+      }
+    }
+
+    // Snapshot the running state after each week. Games are iterated in
+    // schedule order, so this walks the season rather than replaying it.
+    {
+      const cw2 = new Int32Array(N);
+      const cl2 = new Int32Array(N);
+      const w2 = new Int32Array(N);
+      let gi = 0;
+      for (let wk = 1; wk <= WEEK_COUNT; wk++) {
+        while (gi < games.length && games[gi].week === wk) {
+          const g = games[gi];
+          const homeWon = gameHomeWon[gi] === 1;
+          if (g.homeIdx >= 0 && homeWon) w2[g.homeIdx]++;
+          if (g.awayIdx >= 0 && !homeWon) w2[g.awayIdx]++;
+          if (g.conference) {
+            if (homeWon) { cw2[g.homeIdx]++; cl2[g.awayIdx]++; }
+            else { cw2[g.awayIdx]++; cl2[g.homeIdx]++; }
+          }
+          gi++;
+        }
+        // Standing after this week, by conference winning percentage.
+        const rank = Array.from({ length: N }, (_, i) => i).sort((a, b) => {
+          const pa = cw2[a] / Math.max(1, cw2[a] + cl2[a]);
+          const pb = cw2[b] / Math.max(1, cw2[b] + cl2[b]);
+          if (pb !== pa) return pb - pa;
+          if (w2[b] !== w2[a]) return w2[b] - w2[a];
+          return ratingArr[b] - ratingArr[a];
+        });
+        for (let pos = 0; pos < N; pos++) {
+          const base = (it * N + rank[pos]) * WEEK_COUNT + (wk - 1);
+          posPath[base] = pos + 1;
+        }
+        for (let i = 0; i < N; i++) {
+          winPath[(it * N + i) * WEEK_COUNT + (wk - 1)] = w2[i];
         }
       }
     }
@@ -258,6 +356,24 @@ export function simulateSeason(
     champion[champIdx]++;
     w[champIdx]++;
     if (champIdx === first) l[second]++; else l[first]++;
+
+    // Conditional title odds: attribute this season's champion to each game's
+    // realised outcome, so the two halves can be compared afterwards.
+    for (let k = 0; k < confGameIdx.length; k++) {
+      const gi = confGameIdx[k];
+      const g = games[gi];
+      const homeWon = gameHomeWon[gi] === 1;
+      const homeChamp = champIdx === g.homeIdx ? 1 : 0;
+      const awayChamp = champIdx === g.awayIdx ? 1 : 0;
+      if (homeWon) {
+        levWin[gi]++;
+        levHomeChampOnWin[gi] += homeChamp;
+        levAwayChampOnWin[gi] += awayChamp;
+      } else {
+        levHomeChampOnLoss[gi] += homeChamp;
+        levAwayChampOnLoss[gi] += awayChamp;
+      }
+    }
 
     for (let i = 0; i < N; i++) {
       totalWins[i] += w[i];
@@ -332,7 +448,63 @@ export function simulateSeason(
       return { a: TEAMS[x].id, b: TEAMS[y].id, probability: v / iterations };
     });
 
-  return { iterations, teams, titleGamePairs, elapsedMs: Date.now() - started };
+  /* ---- Reduce the raw paths to quantile bands ---------------------------- */
+
+  const scratch = new Float64Array(iterations);
+  const quantilesAt = (source: Uint8Array, teamIdx: number, weekIdx: number): TrajectoryPoint => {
+    let sum = 0;
+    for (let it = 0; it < iterations; it++) {
+      const v = source[(it * N + teamIdx) * WEEK_COUNT + weekIdx];
+      scratch[it] = v;
+      sum += v;
+    }
+    const sorted = scratch.slice(0, iterations).sort();
+    const q = (f: number) => sorted[Math.min(iterations - 1, Math.floor(f * (iterations - 1)))];
+    return {
+      week: weekIdx + 1,
+      p10: q(0.1), p25: q(0.25), p50: q(0.5), p75: q(0.75), p90: q(0.9),
+      mean: sum / iterations,
+    };
+  };
+
+  const trajectories = {} as Record<TeamId, TeamTrajectory>;
+  TEAMS.forEach((t, i) => {
+    trajectories[t.id] = {
+      teamId: t.id,
+      wins: Array.from({ length: WEEK_COUNT }, (_, w) => quantilesAt(winPath, i, w)),
+      position: Array.from({ length: WEEK_COUNT }, (_, w) => quantilesAt(posPath, i, w)),
+    };
+  });
+
+  /* ---- Leverage ---------------------------------------------------------- */
+
+  const leverage: GameLeverage[] = confGameIdx
+    .map((gi) => {
+      const g = games[gi];
+      const wins = levWin[gi];
+      const losses = iterations - wins;
+      // A game whose outcome is effectively decided carries no information.
+      if (wins < 30 || losses < 30) return null;
+      const homeSwing = levHomeChampOnWin[gi] / wins - levHomeChampOnLoss[gi] / losses;
+      const awaySwing = levAwayChampOnLoss[gi] / losses - levAwayChampOnWin[gi] / wins;
+      return {
+        gameId: g.id,
+        week: g.week,
+        homeId: TEAMS[g.homeIdx].id,
+        awayId: TEAMS[g.awayIdx].id,
+        homeSwing,
+        awaySwing,
+        leverage: Math.abs(homeSwing) + Math.abs(awaySwing),
+        homeWinProbability: wins / iterations,
+      } as GameLeverage;
+    })
+    .filter((x): x is GameLeverage => x !== null)
+    .sort((a, b) => b.leverage - a.leverage);
+
+  return {
+    iterations, teams, trajectories, leverage, titleGamePairs,
+    elapsedMs: Date.now() - started,
+  };
 }
 
 /** Games a given team plays, in schedule order. */

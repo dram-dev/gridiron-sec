@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CommandPalette } from './components/CommandPalette';
 import {
   IconBook, IconClipboard, IconGauge, IconMenu, IconMoon, IconPerson, IconReset,
-  IconSearch, IconShield, IconSliders, IconSpark, IconSun, IconSwords,
+  IconSearch, IconShield, IconSliders, IconSpark, IconSun, IconSwords, IconTrend,
 } from './components/icons';
 import { useStore, type ViewId } from './state/store';
 import { CommandCenter } from './views/CommandCenter';
@@ -14,10 +14,12 @@ import { ScenarioStudio } from './views/ScenarioStudio';
 import { Methodology } from './views/Methodology';
 import { HowItWorks } from './views/HowItWorks';
 import { ModelLab } from './views/ModelLab';
+import { Trajectory } from './views/Trajectory';
 
 const NAV: { id: ViewId; label: string; icon: typeof IconGauge; hint: string }[] = [
   { id: 'command', label: 'Command Center', icon: IconGauge, hint: 'League overview' },
   { id: 'team', label: 'Team Lab', icon: IconShield, hint: 'Team forecasting' },
+  { id: 'trajectory', label: 'Trajectory', icon: IconTrend, hint: 'The season as a path' },
   { id: 'player', label: 'Player Lab', icon: IconPerson, hint: 'Player projections' },
   { id: 'matchup', label: 'Matchup', icon: IconSwords, hint: 'Head-to-head' },
   { id: 'coach', label: 'Coach Intel', icon: IconClipboard, hint: 'Staff tendencies' },
@@ -30,6 +32,7 @@ const NAV: { id: ViewId; label: string; icon: typeof IconGauge; hint: string }[]
 const TITLES: Record<ViewId, { title: string; blurb: string }> = {
   command: { title: 'Command Center', blurb: 'Where the sixteen stand, and what the model disagrees with' },
   team: { title: 'Team Lab', blurb: 'One roster, decomposed to the point where you can argue with it' },
+  trajectory: { title: 'Trajectory', blurb: 'Win paths, the standings race, and which games actually decide it' },
   player: { title: 'Player Lab', blurb: 'Usage, efficiency and what each player is worth in points' },
   matchup: { title: 'Matchup Simulator', blurb: 'Any two teams, simulated drive by drive' },
   coach: { title: 'Coach Intelligence', blurb: 'The part of a program that survives roster turnover' },
@@ -221,6 +224,7 @@ export default function App() {
           <div key={view} className="mx-auto max-w-[1360px] px-4 pb-16 pt-5 animate-fade-up lg:px-7">
             {view === 'command' && <CommandCenter />}
             {view === 'team' && <TeamLab />}
+            {view === 'trajectory' && <Trajectory />}
             {view === 'player' && <PlayerLab />}
             {view === 'matchup' && <MatchupLab />}
             {view === 'coach' && <CoachIntel />}

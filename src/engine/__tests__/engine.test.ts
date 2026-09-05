@@ -476,6 +476,96 @@ describe('season simulation', () => {
   });
 });
 
+describe('season trajectories and leverage', () => {
+  const s = { ...makeBaselineScenario(), iterations: 3000 };
+  const result = simulateSeason(rateAll(s), s);
+
+  it('records a path for every team, one point per week', () => {
+    for (const t of TEAMS) {
+      const tr = result.trajectories[t.id];
+      expect(tr, t.id).toBeDefined();
+      expect(tr.wins).toHaveLength(13);
+      expect(tr.position).toHaveLength(13);
+      expect(tr.wins.map((p) => p.week)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13]);
+    }
+  });
+
+  it('never lets cumulative wins go down', () => {
+    for (const t of TEAMS) {
+      const w = result.trajectories[t.id].wins;
+      for (let i = 1; i < w.length; i++) {
+        expect(w[i].mean, `${t.id} week ${i + 1}`).toBeGreaterThanOrEqual(w[i - 1].mean - 1e-9);
+        expect(w[i].p50).toBeGreaterThanOrEqual(w[i - 1].p50);
+      }
+    }
+  });
+
+  it('orders the quantile bands correctly at every week', () => {
+    for (const t of TEAMS) {
+      for (const p of result.trajectories[t.id].wins) {
+        expect(p.p10).toBeLessThanOrEqual(p.p25);
+        expect(p.p25).toBeLessThanOrEqual(p.p50);
+        expect(p.p50).toBeLessThanOrEqual(p.p75);
+        expect(p.p75).toBeLessThanOrEqual(p.p90);
+      }
+    }
+  });
+
+  it('ends the path on the regular-season win total', () => {
+    for (const t of TEAMS) {
+      const last = result.trajectories[t.id].wins[12];
+      const fromDist = result.teams[t.id].regularWinDistribution
+        .reduce((acc, p, i) => acc + p * i, 0);
+      expect(last.mean, t.id).toBeCloseTo(fromDist, 6);
+    }
+  });
+
+  it('keeps every standing inside the table', () => {
+    for (const t of TEAMS) {
+      for (const p of result.trajectories[t.id].position) {
+        expect(p.p10).toBeGreaterThanOrEqual(1);
+        expect(p.p90).toBeLessThanOrEqual(TEAMS.length);
+      }
+    }
+  });
+
+  it('assigns exactly one team to each standing every week', () => {
+    // Medians can tie, but the mean position across all teams must be the mean
+    // of 1..16 at every week if each position was filled exactly once.
+    const expected = (TEAMS.length + 1) / 2;
+    for (let w = 0; w < 13; w++) {
+      const mean = TEAMS.reduce((acc, t) => acc + result.trajectories[t.id].position[w].mean, 0) / TEAMS.length;
+      expect(mean, `week ${w + 1}`).toBeCloseTo(expected, 6);
+    }
+  });
+
+  it('rates leverage only on conference games, sorted by swing', () => {
+    const confIds = new Set(CONFERENCE_GAMES.map((g) => g.id));
+    for (const g of result.leverage) expect(confIds.has(g.gameId)).toBe(true);
+    for (let i = 1; i < result.leverage.length; i++) {
+      expect(result.leverage[i - 1].leverage).toBeGreaterThanOrEqual(result.leverage[i].leverage);
+    }
+  });
+
+  it('keeps every swing a valid probability difference', () => {
+    for (const g of result.leverage) {
+      expect(Math.abs(g.homeSwing)).toBeLessThanOrEqual(1);
+      expect(Math.abs(g.awaySwing)).toBeLessThanOrEqual(1);
+      expect(g.homeWinProbability).toBeGreaterThan(0);
+      expect(g.homeWinProbability).toBeLessThan(1);
+    }
+  });
+
+  it('finds the biggest swing in a game between two contenders', () => {
+    // The heaviest game must involve teams that can actually win the title;
+    // a swing concentrated on a team with no path would be a bug.
+    const top = result.leverage[0];
+    const contender = (id: (typeof TEAMS)[number]['id']) => result.teams[id].pChampion > 0.02;
+    expect(contender(top.homeId) || contender(top.awayId)).toBe(true);
+    expect(top.leverage).toBeGreaterThan(0.05);
+  });
+});
+
 describe('player projections', () => {
   const projections = projectAllGames(ratings, scenario);
 

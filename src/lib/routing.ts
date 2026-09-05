@@ -17,12 +17,14 @@ import type { TeamId } from '../data/types';
  * ========================================================================== */
 
 export type ViewId =
-  | 'command' | 'team' | 'player' | 'matchup' | 'coach' | 'scenario' | 'model' | 'method' | 'how';
+  | 'command' | 'team' | 'trajectory' | 'player' | 'matchup' | 'coach' | 'scenario'
+  | 'model' | 'method' | 'how';
 
 export const VIEW_SLUG: Record<ViewId, string> = {
   command: '',
   how: 'how-it-works',
   team: 'team',
+  trajectory: 'trajectory',
   player: 'player',
   matchup: 'matchup',
   coach: 'coach',
@@ -49,7 +51,7 @@ export function parseHash(hash: string): Route | null {
   if (!view) return null;
 
   const route: Route = { view };
-  if (view === 'team' || view === 'coach') {
+  if (view === 'team' || view === 'coach' || view === 'trajectory') {
     if (a && TEAM_BY_ID[a.toUpperCase()]) route.teamId = a.toUpperCase() as TeamId;
   } else if (view === 'player') {
     if (a && PLAYER_BY_ID[a]) route.playerId = a;
@@ -63,7 +65,7 @@ export function parseHash(hash: string): Route | null {
 export function buildHash(route: Route): string {
   const slug = VIEW_SLUG[route.view];
   const parts = [slug];
-  if (route.view === 'team' || route.view === 'coach') {
+  if (route.view === 'team' || route.view === 'coach' || route.view === 'trajectory') {
     if (route.teamId) parts.push(route.teamId);
   } else if (route.view === 'player') {
     if (route.playerId) parts.push(route.playerId);

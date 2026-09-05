@@ -71,3 +71,10 @@ export const IconMenu = ({ size = 18, className }: P) => (
 export const IconSpark = ({ size = 14, className }: P) => (
   <svg {...base(size)} className={className}><path d="M10 2.6 11.7 7.4 16.5 9 11.7 10.6 10 15.4 8.3 10.6 3.5 9l4.8-1.6L10 2.6Z" /></svg>
 );
+
+export const IconTrend = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M2.8 13.6 7 8.9l3.1 2.7 4.4-5.4" /><path d="M11.6 6.2h3.6v3.6" />
+    <path d="M2.8 17.2h14.4" />
+  </svg>
+);

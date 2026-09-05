@@ -19,6 +19,7 @@ per team, top two by conference winning percentage meet in Atlanta on 5 December
 | **Player Lab** | All 191 tracked players ranked by PAR, with season projections carrying 10th–90th percentile bands and per-week matchup difficulty |
 | **Matchup Simulator** | Any two teams, 30,000 drive-level simulations — margin distribution, most likely final scores, spread and total ladders, key player lines for both sides |
 | **Coach Intelligence** | Tendency profiles that survive roster turnover, career arcs, and the uncertainty premium on six first-year staffs |
+| **[Trajectory](https://dram-dev.github.io/gridiron-sec/#/trajectory)** | The season as a path — win fan charts, the standings race, per-game title leverage, and every team's outcome distribution at once |
 | **[Model Lab](https://dram-dev.github.io/gridiron-sec/#/model)** | The twelve coefficients that *are* the model — move one and the whole league re-derives, scored against rankings it was never fitted to |
 | **[How this works](https://dram-dev.github.io/gridiron-sec/#/how-it-works)** | Long-form explainer — the engine end to end, and the design decisions behind the interface |
 | **Scenario Studio** | Injury availability, per-team dials, league-wide conditions, and forced results for conditional odds |
@@ -54,7 +55,11 @@ The total responds to both offences and both defences, scaled by tempo. A drive-
 Carlo then produces the actual score distribution — calibrated so its expected points and its
 margin standard deviation both match the closed form exactly.
 
-**3 — Season simulation.** Every game, thousands of times. A team's true strength is drawn
+**3 — Season simulation.** Every game, thousands of times, recording the path rather than
+only the endpoint: cumulative wins and conference standing are captured after each week, and
+each game's marginal effect on the title race is measured by conditioning — the simulation set
+is split on that game's result and the two championship rates compared, with every other game
+still playing out on both sides. A team's true strength is drawn
 **once per simulated season**, not once per game: a team that is three points better than its
 rating is better every week. Without that correlation, simulated win totals cluster far too
 tightly and every team looks like a seven-win team.
