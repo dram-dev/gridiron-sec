@@ -1,1 +1,118 @@
-# gridiron-sec
+# Gridiron SEC — 2026 forecasting model
+
+**Live: https://dram-dev.github.io/gridiron-sec/**
+
+A forecasting dashboard for the 2026 SEC football season: power ratings decomposed into
+seven interpretable components, drive-level game simulation, player-level projections with
+Points Above Replacement, coaching-tendency profiles, and a scenario studio where changing
+one assumption propagates through every projection in the app.
+
+Built for the SEC's first nine-game conference season — no divisions, three annual opponents
+per team, top two by conference winning percentage meet in Atlanta on 5 December.
+
+## What it does
+
+| View | What it answers |
+|---|---|
+| **Command Center** | Where the sixteen stand, where the model disagrees with the AP poll, the full 120-game slate week by week |
+| **Team Lab** | One team decomposed — rating waterfall, efficiency profile against the conference median, game-by-game win probability, win-total distribution, roster value |
+| **Player Lab** | All 191 tracked players ranked by PAR, with season projections carrying 10th–90th percentile bands and per-week matchup difficulty |
+| **Matchup Simulator** | Any two teams, 30,000 drive-level simulations — margin distribution, most likely final scores, spread and total ladders, key player lines for both sides |
+| **Coach Intelligence** | Tendency profiles that survive roster turnover, career arcs, and the uncertainty premium on six first-year staffs |
+| **Scenario Studio** | Injury availability, per-team dials, league-wide conditions, and forced results for conditional odds |
+| **Methodology** | Every constant, every source, every limitation |
+
+## The model
+
+Three layers, each taking the one above as input.
+
+**1 — Team rating.** Points per game above an average FBS team on a neutral field, as the sum
+of seven named components: returning offence, returning defence, quarterback, coaching,
+continuity, portal & recruiting, and special teams. Keeping them separate is what makes the
+projection explainable and what lets a scenario move exactly one thing at a time.
+
+**2 — Game model.** Margin is pure rating arithmetic (`rating gap + home field + rest`, damped
+by weather), so any projection reads back as "this team is N points better, plus home field".
+The total responds to both offences and both defences, scaled by tempo. A drive-level Monte
+Carlo then produces the actual score distribution — calibrated so its expected points and its
+margin standard deviation both match the closed form exactly.
+
+**3 — Season simulation.** Every game, thousands of times. A team's true strength is drawn
+**once per simulated season**, not once per game: a team that is three points better than its
+rating is better every week. Without that correlation, simulated win totals cluster far too
+tightly and every team looks like a seven-win team.
+
+**PAR** (Points Above Replacement) is the points of team rating lost across a season if a
+player were replaced by the next man up. Ruling a player out subtracts exactly that from the
+appropriate side of the ball — the arithmetic is visible and checkable in the interface.
+
+## Data provenance
+
+Every record carries a `verified` or `modeled` flag, surfaced in the UI wherever it appears.
+
+- **Verified** — the 2026 schedule (all 72 conference games reconciled across both
+  participants' published schedules), the Preseason Coaches All-SEC teams, announced Week 1
+  starting quarterbacks, reported portal additions, 2025 final standings, and the coaching
+  carousel. Sourced from public reporting while the dataset was compiled; every source is
+  listed in the Methodology view.
+- **Modeled** — per-play efficiency profiles, usage shares, player grades, PAR values, coach
+  tendency indices and all seven rating components. Analyst estimates calibrated against the
+  verified layer. Model inputs, not measurements.
+
+This is a static snapshot compiled 5 September 2026. It does not update for results or
+injuries; the Scenario Studio exists so you can impose those yourself. It is not betting advice.
+
+## Design
+
+Charts follow one spec throughout: thin marks with rounded data-ends anchored to the baseline,
+2px lines, a 2px surface gap between adjacent fills, recessive axes, selective direct labels,
+and a hover layer on everything that plots.
+
+Every colour ramp was checked with a palette validator against both chart surfaces —
+lightness band, chroma floor, colour-vision-deficiency separation, normal-vision floor and
+contrast. Two-series charts use validated categorical hues rather than team colours, because
+half this conference wears near-identical crimson and Georgia-versus-Alabama in team colours
+is two indistinguishable reds. Team identity is carried by swatches and direct labels instead.
+
+Light and dark are both selected, not flipped — each mode has its own validated steps.
+
+## Running it
+
+```bash
+git clone https://github.com/dram-dev/gridiron-sec.git
+cd gridiron-sec
+npm install
+npm run dev          # development server
+npm test             # 52 engine and data-integrity tests
+npm run typecheck
+npm run build        # production build
+npm run build:artifact   # single-file build, everything inlined
+```
+
+## Layout
+
+```
+src/
+  data/       typed schema and the curated 2026 dataset
+              teams · coaches · players · schedule · meta
+  engine/     pure, deterministic forecasting
+              ratings · game · season · players · scenario · rng · constants
+  components/ chart and interface primitives
+  views/      the seven dashboard views
+  state/      one reducer holding the scenario; everything else derives from it
+  workers/    season simulation, off the main thread
+  lib/        validated visualisation palette and formatting
+```
+
+The engine is pure TypeScript with no React dependency and no I/O — it can be imported and run
+anywhere. All randomness comes from a seeded generator, so the same seed and scenario always
+produce the same numbers.
+
+## Tests
+
+`npm test` covers schedule integrity (72 conference games, nine per team, all annual opponents
+honoured, no double-bookings), data integrity (every player on a real team, usage shares and
+probabilities in range), the statistics helpers, rating arithmetic (components sum to the
+total; ruling a player out costs exactly their PAR), agreement between the closed-form and
+simulated game models, and season-simulation invariants (one champion and two title-game
+participants per simulated season, win distributions summing to one, forced results honoured).

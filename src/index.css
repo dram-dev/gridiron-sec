@@ -1,0 +1,275 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   Gridiron SEC — design tokens
+   Dark-first analytics surface with a fully specified light counterpart.
+   Every color is defined on :root, then overridden per theme.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  --bg-canvas: #07090d;
+  --bg-sunken: #05070a;
+  --bg-panel: #0d121b;
+  --bg-panel-2: #121827;
+  --bg-raised: #18202f;
+  --bg-hover: #1d2635;
+  --bg-active: #243047;
+
+  --line-faint: rgb(255 255 255 / 0.05);
+  --line: rgb(255 255 255 / 0.09);
+  --line-strong: rgb(255 255 255 / 0.16);
+
+  --text-hi: #eef2f9;
+  --text: #c5cee0;
+  --text-mid: #8f9cb4;
+  --text-low: #66738c;
+  --text-faint: #4b5568;
+
+  --accent: #17b083;
+  --accent-hi: #3bc99b;
+  --accent-dim: rgb(23 176 131 / 0.14);
+
+  /* ---- Data-visualization roles ----------------------------------------
+     Every ramp below was checked with the palette validator against this
+     surface: lightness band, chroma floor, CVD separation, normal-vision
+     floor and contrast. Do not hand-edit a step without re-validating. */
+
+  /* Diverging: teal (cool) <-> orange (warm) with a neutral gray midpoint.
+     Passes CVD separation at deltaE 9.5 on this surface. */
+  --viz-pos: #12a077;
+  --viz-pos-soft: #12a07733;
+  --viz-neg: #dd7526;
+  --viz-neg-soft: #dd752633;
+  --viz-mid: #6b7689;
+
+  /* Sequential: single hue, monotone lightness, light end clears the surface. */
+  --viz-seq-1: #0b8e6b;
+  --viz-seq-2: #17b083;
+  --viz-seq-3: #3bc99b;
+  --viz-seq-4: #75dfba;
+  --viz-seq-5: #aeedd4;
+
+  /* Categorical: fixed slot order. Never cycled, never reassigned by rank. */
+  --viz-c1: #3987e5;
+  --viz-c2: #d95926;
+  --viz-c3: #199e70;
+  --viz-c4: #c98500;
+  --viz-c5: #d55181;
+  --viz-c6: #008300;
+  --viz-c7: #9085e9;
+  --viz-c8: #e66767;
+
+  --warn: #f5c451;
+  --danger: #f9683f;
+
+  --shadow-panel: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 14px 36px -16px rgb(0 0 0 / 0.7);
+  --grid-line: rgb(255 255 255 / 0.06);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-canvas: #f4f6fa;
+  --bg-sunken: #eaeef5;
+  --bg-panel: #ffffff;
+  --bg-panel-2: #f8fafc;
+  --bg-raised: #ffffff;
+  --bg-hover: #f1f4f9;
+  --bg-active: #e5ebf4;
+
+  --line-faint: rgb(15 23 42 / 0.05);
+  --line: rgb(15 23 42 / 0.11);
+  --line-strong: rgb(15 23 42 / 0.2);
+
+  --text-hi: #0b1220;
+  --text: #26324a;
+  --text-mid: #56637d;
+  --text-low: #77839b;
+  --text-faint: #97a1b5;
+
+  --accent: #0b8e6b;
+  --accent-hi: #0a7157;
+  --accent-dim: rgb(11 142 107 / 0.12);
+
+  --viz-pos: #0b8e6b;
+  --viz-pos-soft: #0b8e6b26;
+  --viz-neg: #d2611f;
+  --viz-neg-soft: #d2611f26;
+  --viz-mid: #8b95a8;
+
+  --viz-seq-1: #063f31;
+  --viz-seq-2: #0a7053;
+  --viz-seq-3: #109371;
+  --viz-seq-4: #1eb187;
+  --viz-seq-5: #45c99c;
+
+  --viz-c1: #2a78d6;
+  --viz-c2: #eb6834;
+  --viz-c3: #1baf7a;
+  --viz-c4: #eda100;
+  --viz-c5: #e87ba4;
+  --viz-c6: #008300;
+  --viz-c7: #4a3aa7;
+  --viz-c8: #e34948;
+
+  --warn: #b8860b;
+  --danger: #c9401b;
+
+  --shadow-panel: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px -14px rgb(15 23 42 / 0.28);
+  --grid-line: rgb(15 23 42 / 0.07);
+}
+
+@layer base {
+  * { border-color: var(--line); }
+
+  html, body, #root { height: 100%; }
+
+  body {
+    background: var(--bg-canvas);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv05' 1, 'ss03' 1;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+
+  /* Numbers must line up in tables and stat blocks. */
+  .tnum, table, .stat { font-variant-numeric: tabular-nums; }
+
+  ::selection { background: var(--accent); color: #04110d; }
+
+  :focus-visible {
+    outline: 2px solid var(--accent-hi);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar { width: 11px; height: 11px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 99px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--text-faint); background-clip: content-box; }
+}
+
+@layer components {
+  .panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow-panel);
+  }
+  .panel-flat {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .hairline { border-color: var(--line-faint); }
+
+  .label {
+    font-size: 10.5px;
+    line-height: 1.1;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-low);
+  }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; line-height: 1.5;
+    border: 1px solid var(--line);
+    background: var(--bg-panel-2);
+    color: var(--text-mid);
+    white-space: nowrap;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border-radius: 9px; border: 1px solid var(--line);
+    background: var(--bg-panel-2); color: var(--text);
+    font-size: 12.5px; font-weight: 600;
+    padding: 7px 12px;
+    transition: background .16s var(--tw-ease, ease), color .16s, border-color .16s, transform .1s;
+    cursor: pointer; user-select: none;
+  }
+  .btn:hover { background: var(--bg-hover); color: var(--text-hi); border-color: var(--line-strong); }
+  .btn:active { transform: translateY(0.5px); }
+  .btn[data-active='true'] {
+    background: var(--accent-dim); border-color: var(--accent); color: var(--accent-hi);
+  }
+  .btn:disabled { opacity: .42; cursor: not-allowed; }
+
+  .field {
+    background: var(--bg-sunken);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: var(--text-hi);
+    font-size: 13px;
+    padding: 7px 10px;
+    width: 100%;
+    transition: border-color .16s, background .16s;
+  }
+  .field:focus { border-color: var(--accent); outline: none; background: var(--bg-panel); }
+  .field::placeholder { color: var(--text-faint); }
+
+  .row-hover { transition: background .12s ease; }
+  .row-hover:hover { background: var(--bg-hover); }
+
+  .skel {
+    background: linear-gradient(90deg, var(--bg-panel-2) 25%, var(--bg-hover) 37%, var(--bg-panel-2) 63%);
+    background-size: 200% 100%;
+  }
+}
+
+/* Range inputs — used heavily by the scenario studio. */
+input[type='range'] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 22px; background: transparent; cursor: grab;
+}
+input[type='range']:active { cursor: grabbing; }
+input[type='range']::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 99px; background: var(--line-strong);
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; margin-top: -5px; border-radius: 50%;
+  background: var(--accent-hi);
+  border: 2px solid var(--bg-panel);
+  box-shadow: 0 1px 6px rgb(0 0 0 / .5);
+  transition: transform .12s ease;
+}
+input[type='range']::-webkit-slider-thumb:hover { transform: scale(1.18); }
+input[type='range']::-moz-range-track { height: 4px; border-radius: 99px; background: var(--line-strong); }
+input[type='range']::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent-hi); border: 2px solid var(--bg-panel);
+}
+
+/* The skip link is visually hidden until focused. */
+.sr-only:focus,
+.sr-only:focus-visible {
+  position: fixed;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}

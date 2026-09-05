@@ -1,0 +1,41 @@
+{
+  "name": "gridiron-sec",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc -b --noEmit",
+    "build:artifact": "BUILD_TARGET=artifact vite build"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/coverage-v8": "^5.0.0",
+    "autoprefixer": "^10.5.5",
+    "oxlint": "^1.79.0",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^5.0.0"
+  },
+  "description": "A 2026 SEC college football forecasting model with team, player and coach analytics, head-to-head simulation and scenario planning.",
+  "license": "MIT",
+  "homepage": "https://dram-dev.github.io/gridiron-sec/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dram-dev/gridiron-sec.git"
+  }
+}
