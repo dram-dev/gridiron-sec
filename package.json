@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b --noEmit",
-    "build:artifact": "BUILD_TARGET=artifact vite build"
+    "build:artifact": "BUILD_TARGET=artifact vite build",
+    "etl:fetch": "node scripts/etl/fetch.mjs",
+    "etl": "node --max-old-space-size=8000 scripts/etl/build.mjs",
+    "etl:validate": "node --max-old-space-size=8000 scripts/etl/validate.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -29,7 +32,9 @@
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
     "vite-plugin-singlefile": "^2.3.3",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "hyparquet": "^1.29.2",
+    "hyparquet-compressors": "^1.1.1"
   },
   "description": "A 2026 SEC college football forecasting model with team, player and coach analytics, head-to-head simulation and scenario planning.",
   "license": "MIT",

@@ -270,11 +270,23 @@ describe('the derivation', () => {
     const rho = 1 - (6 * d2) / (n * (n * n - 1));
     expect(rho).toBeGreaterThan(0.99);
 
-    // Any team that did move must have been within a point of its neighbour.
+    // Any team that moved must have been close enough that the non-scaling
+    // part of its rating could account for it — and that bound is derived, not
+    // guessed. Writing the rescale as `scaled = k(sum − fixed) + fixed` inverts
+    // to give each team's fixed part exactly, whatever terms happen to make it
+    // up. Two teams can only swap when the gap between them is smaller than
+    // ((k − 1) / k) × the spread of that fixed part.
+    const fixed = (id: (typeof TEAMS)[number]['id']) =>
+      (sum(scaled, id) - k * sum(DERIVED, id)) / (1 - k);
+    const fixedValues = a.map(fixed);
+    const tolerance =
+      ((k - 1) / k) * (Math.max(...fixedValues) - Math.min(...fixedValues));
+
     for (const id of a) {
       if (rankA[id] === rankB[id]) continue;
       const neighbour = a[Math.min(n - 1, Math.max(0, rankB[id] - 1))];
-      expect(Math.abs(sum(DERIVED, id) - sum(DERIVED, neighbour)), id).toBeLessThan(1);
+      expect(Math.abs(sum(DERIVED, id) - sum(DERIVED, neighbour)), id)
+        .toBeLessThan(tolerance);
     }
   });
 

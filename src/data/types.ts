@@ -1,13 +1,15 @@
 /* ============================================================================
  * Gridiron SEC — domain model
  *
- * Every record carries provenance. `verified` values were sourced from public
- * reporting during the build; `modeled` values are analyst estimates derived
- * from the verified layer. The UI surfaces this distinction so nobody mistakes
- * an estimate for a measurement.
+ * Every record carries provenance, in three tiers. `measured` values were
+ * counted off the 2025 play-by-play by scripts/etl and land in the generated
+ * measured.ts — nobody typed them. `verified` values were sourced from public
+ * reporting during the build. `modeled` values are analyst estimates derived
+ * from the layers above. The UI surfaces the distinction so nobody mistakes an
+ * estimate for a measurement.
  * ========================================================================== */
 
-export type Provenance = 'verified' | 'modeled';
+export type Provenance = 'measured' | 'verified' | 'modeled';
 
 export type TeamId =
   | 'ALA' | 'ARK' | 'AUB' | 'FLA' | 'UGA' | 'UK' | 'LSU' | 'MISS'
@@ -43,7 +45,13 @@ export interface Venue {
 /* Team efficiency                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** Per-play efficiency profile from the prior season, opponent-adjusted. */
+/**
+ * Per-play efficiency profile from the prior season, opponent-adjusted.
+ *
+ * Every field is counted off real plays by scripts/etl — see measured.ts. The
+ * quality metrics have the schedule removed; the pace and style metrics are
+ * season rates, since an opponent does not choose how fast you snap the ball.
+ */
 export interface EfficiencyProfile {
   /** Offensive EPA per play. Elite ≈ +0.25, average 0, poor ≈ −0.15. */
   offEpa: number;
@@ -131,7 +139,9 @@ export interface ReturningProduction {
 export interface TalentProfile {
   /** Share of the two-deep that were blue-chip (4★/5★) recruits. */
   blueChipRatio: number;
-  /** Four-year weighted recruiting composite, 0–1000. */
+  /** Four-year weighted recruiting composite, on the source's own scale (top
+   *  programmes land near 1,450). Only its spread matters — the model
+   *  standardises it before use. */
   composite: number;
   recruitClassRank: number;
   portalClassRank: number;

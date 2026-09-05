@@ -6,6 +6,7 @@ import { ALL_GAMES } from '../data/schedule';
 import { GAME_SIGMA, LEAGUE_PPG, TEAM_SIGMA } from '../engine/constants';
 import { normalCdf } from '../engine/rng';
 import { externalAgreement, spearmanVsSpPlus } from '../engine/model';
+import { MEASURED_META } from '../data/measured';
 import { CATEGORICAL, DIVERGING, SEQUENTIAL, pct, signed } from '../lib/viz';
 import { useStore } from '../state/store';
 
@@ -23,17 +24,18 @@ import { useStore } from '../state/store';
  * ========================================================================== */
 
 const SECTIONS = [
-  { id: 'ratings', part: 'one', n: '1', title: 'What a rating is' },
-  { id: 'games', part: 'one', n: '2', title: 'From two ratings to a game' },
-  { id: 'seasons', part: 'one', n: '3', title: 'From games to a season' },
-  { id: 'players', part: 'one', n: '4', title: 'What a player is worth' },
-  { id: 'limits', part: 'one', n: '5', title: 'What it will not tell you' },
-  { id: 'brief', part: 'two', n: '6', title: 'Two jobs, one product' },
-  { id: 'crimson', part: 'two', n: '7', title: 'Why charts avoid team colours' },
-  { id: 'ramps', part: 'two', n: '8', title: 'Testing instead of eyeballing' },
-  { id: 'marks', part: 'two', n: '9', title: 'One chart spec, everywhere' },
-  { id: 'type', part: 'two', n: '10', title: 'Type, numbers and themes' },
-  { id: 'next', part: 'two', n: '11', title: 'Where the model is weakest' },
+  { id: 'measured', part: 'one', n: '1', title: 'Where the numbers come from' },
+  { id: 'ratings', part: 'one', n: '2', title: 'What a rating is' },
+  { id: 'games', part: 'one', n: '3', title: 'From two ratings to a game' },
+  { id: 'seasons', part: 'one', n: '4', title: 'From games to a season' },
+  { id: 'players', part: 'one', n: '5', title: 'What a player is worth' },
+  { id: 'limits', part: 'one', n: '6', title: 'What it will not tell you' },
+  { id: 'brief', part: 'two', n: '7', title: 'Two jobs, one product' },
+  { id: 'crimson', part: 'two', n: '8', title: 'Why charts avoid team colours' },
+  { id: 'ramps', part: 'two', n: '9', title: 'Testing instead of eyeballing' },
+  { id: 'marks', part: 'two', n: '10', title: 'One chart spec, everywhere' },
+  { id: 'type', part: 'two', n: '11', title: 'Type, numbers and themes' },
+  { id: 'next', part: 'two', n: '12', title: 'Where the model is weakest' },
 ];
 
 export function HowItWorks() {
@@ -150,8 +152,93 @@ export function HowItWorks() {
             </p>
           </Prose>
 
+          {/* ---- 2 ---- */}
           {/* ---- 1 ---- */}
-          <Section id="ratings" n="1" title="What a rating is">
+          <Section id="measured" n="1" title="Where the numbers come from">
+            <Prose>
+              <p>
+                Every model rests on observations, and a model is only ever as honest as those.
+                So it is worth being exact about what the observations here are:{' '}
+                <Num>{MEASURED_META.plays.toLocaleString()}</Num> plays of{' '}
+                {MEASURED_META.priorSeason} college football, every one of them real, read from the
+                public play-by-play record and reduced by a script in this repository. No per-play
+                figure in this app was typed by a person. Run{' '}
+                <code className="hiw-code">npm run etl</code> and the entire data layer regenerates.
+              </p>
+              <p className="hiw-sub">A raw average would lie about this conference</p>
+              <p>
+                Sixteen teams that mostly play each other post depressed offensive numbers and
+                flattering defensive ones, because the schedule is the hardest in the sport.
+                Comparing a raw SEC average against a raw Sun Belt average compares schedules, not
+                teams — which is precisely the mistake a conference-specific app is most likely to
+                make.
+              </p>
+              <p>
+                So each metric is fit across every FBS game in the season as a sum of two effects:
+                what the offence brings, and what the defence takes away.
+              </p>
+            </Prose>
+
+            <Formula
+              title="One team's output in one game"
+              lines={[
+                'observed  =  league mean  +  offence effect  −  defence effect',
+                'solved for all 236 teams at once, alternating between the two sides',
+              ]}
+              result="what this team would do against an average opponent"
+            />
+
+            <Prose>
+              <p>
+                Each solve is ridge-regularised, which is what stops a team that scheduled one
+                overmatched opponent from being credited as though it had beaten an average one:
+                thin evidence gets pulled toward the league mean in proportion to how thin it is.
+                The strength of that pull is not a taste setting. It is chosen for each metric
+                separately by five-fold cross-validation on held-out games — the value that best
+                predicts games the fit never saw.
+              </p>
+              <p className="hiw-sub">The adjustment earns its place</p>
+              <p>
+                The test is out of sample: fit ratings on four fifths of the season, then predict
+                the final margin of the games left out. Removing the schedule explains half again
+                as much of the result as leaving it in.
+              </p>
+            </Prose>
+
+            <Figure caption="Variance in final margin explained, on games the ratings were not fit on. Five folds, all 956 FBS games scored in both bars.">
+              <R2Compare
+                adjusted={MEASURED_META.marginR2.adjusted}
+                raw={MEASURED_META.marginR2.raw}
+              />
+            </Figure>
+
+            <Prose>
+              <p className="hiw-sub">One assumption that did not survive contact</p>
+              <p>
+                Standard practice is to throw away garbage time — once a game is decided, the
+                backups are in and the snaps stop describing the team. It is a sensible-sounding
+                rule, so it was tested rather than assumed, and it was wrong: every cut made the
+                ratings predict worse, and the harder the cut, the worse they got.
+              </p>
+              <p>
+                In hindsight the reason is clear enough. A blowout is evidence — a team capable of
+                one is better than a team that grinds out the same win — and conditioning on "still
+                competitive" quietly selects each team's better moments, most severely for its worst
+                teams. So no plays are discarded here. That result is reproducible with{' '}
+                <code className="hiw-code">npm run etl:validate</code>.
+              </p>
+              <p className="hiw-sub">What is still not measured</p>
+              <p>
+                Team efficiency, {MEASURED_META.priorSeason} results, returning production and
+                recruiting composites are counted. Individual player grades are not — those remain
+                analyst estimates, and they are labelled as such wherever they appear. It is the
+                softest input left in the system, and{' '}
+                <a className="hiw-link" href="#next">section 12</a> is blunt about what that costs.
+              </p>
+            </Prose>
+          </Section>
+
+          <Section id="ratings" n="2" title="What a rating is">
             <Prose>
               <p>
                 A rating is points per game above an average team, on a neutral field. Georgia at{' '}
@@ -212,8 +299,8 @@ export function HowItWorks() {
             </Prose>
           </Section>
 
-          {/* ---- 2 ---- */}
-          <Section id="games" n="2" title="From two ratings to a game">
+          {/* ---- 3 ---- */}
+          <Section id="games" n="3" title="From two ratings to a game">
             <Prose>
               <p>
                 Once two teams have ratings, the projection is subtraction. Here is a real one —
@@ -298,8 +385,8 @@ export function HowItWorks() {
             </Prose>
           </Section>
 
-          {/* ---- 3 ---- */}
-          <Section id="seasons" n="3" title="From games to a season">
+          {/* ---- 4 ---- */}
+          <Section id="seasons" n="4" title="From games to a season">
             <Prose>
               <p>
                 A season is all {ALL_GAMES.length} games, played{' '}
@@ -341,8 +428,8 @@ export function HowItWorks() {
             </Prose>
           </Section>
 
-          {/* ---- 4 ---- */}
-          <Section id="players" n="4" title="What a player is worth">
+          {/* ---- 5 ---- */}
+          <Section id="players" n="5" title="What a player is worth">
             <Prose>
               <p>
                 Players enter the model through one number: <strong style={{ color: 'var(--text-hi)' }}>Points
@@ -384,8 +471,8 @@ export function HowItWorks() {
             </Figure>
           </Section>
 
-          {/* ---- 5 ---- */}
-          <Section id="limits" n="5" title="What it will not tell you">
+          {/* ---- 6 ---- */}
+          <Section id="limits" n="6" title="What it will not tell you">
             <Prose>
               <p>
                 A forecast without its limits is just a number. These are the real ones.
@@ -402,8 +489,8 @@ export function HowItWorks() {
           {/* ============================================================ */}
           <PartRule label="Part two" title="The design" />
 
-          {/* ---- 6 ---- */}
-          <Section id="brief" n="6" title="Two jobs, one product">
+          {/* ---- 7 ---- */}
+          <Section id="brief" n="7" title="Two jobs, one product">
             <Prose>
               <p>
                 Six of the seven views are a tool. They are scanned, filtered, sorted and compared,
@@ -424,8 +511,8 @@ export function HowItWorks() {
             </Prose>
           </Section>
 
-          {/* ---- 7 ---- */}
-          <Section id="crimson" n="7" title="Why charts avoid team colours">
+          {/* ---- 8 ---- */}
+          <Section id="crimson" n="8" title="Why charts avoid team colours">
             <Prose>
               <p>
                 Colouring each side of a chart in its own team colour is the obvious move, and in
@@ -473,8 +560,8 @@ export function HowItWorks() {
             </Prose>
           </Section>
 
-          {/* ---- 8 ---- */}
-          <Section id="ramps" n="8" title="Testing instead of eyeballing">
+          {/* ---- 9 ---- */}
+          <Section id="ramps" n="9" title="Testing instead of eyeballing">
             <Prose>
               <p>
                 Colour separation is measurable, so it is measured rather than judged by eye. Every
@@ -516,8 +603,8 @@ export function HowItWorks() {
             </Figure>
           </Section>
 
-          {/* ---- 9 ---- */}
-          <Section id="marks" n="9" title="One chart spec, everywhere">
+          {/* ---- 10 ---- */}
+          <Section id="marks" n="10" title="One chart spec, everywhere">
             <Prose>
               <p>
                 Every chart in the app follows the same rules, so a reader learns them once and then
@@ -531,8 +618,8 @@ export function HowItWorks() {
             </Prose>
           </Section>
 
-          {/* ---- 10 ---- */}
-          <Section id="type" n="10" title="Type, numbers and themes">
+          {/* ---- 11 ---- */}
+          <Section id="type" n="11" title="Type, numbers and themes">
             <Prose>
               <p>
                 The interface runs on the system font stack. It loads with no network round trip and
@@ -557,8 +644,8 @@ export function HowItWorks() {
             </Figure>
           </Section>
 
-          {/* ---- 11 ---- */}
-          <Section id="next" n="11" title="Where the model is weakest">
+          {/* ---- 12 ---- */}
+          <Section id="next" n="12" title="Where the model is weakest">
             <Prose>
               <p>
                 Four places where the model is thinner than it looks, in rough order of how much
@@ -566,12 +653,11 @@ export function HowItWorks() {
               </p>
               <ol className="hiw-numbered">
                 <li>
-                  <strong>The observations are estimates, not measurements.</strong> The structure
-                  above them is real — twelve coefficients, no per-team constants — but per-play
-                  efficiency profiles and player grades are analyst estimates rather than figures
-                  derived from play-by-play. A sound model on soft inputs is still soft. This is
-                  the single biggest limitation in the system, and every affected record is flagged
-                  in the interface.
+                  <strong>The player layer is graded, not measured.</strong> Team observations are
+                  counted off 165,849 real plays. Individual player grades are not — they are
+                  analyst estimates, and they feed roster strength, the quarterback term and every
+                  PAR figure. This is now the softest input in the system, and every affected
+                  record is flagged in the interface.
                 </li>
                 <li>
                   <strong>The playoff figure is a heuristic.</strong> Every other number derives
@@ -726,11 +812,41 @@ function ComponentList() {
 const LIMITS: [string, string][] = [
   ['The error bars are wide, and they should be', `A single-game spread of ${GAME_SIGMA} points is not hedging. It is the sport. Any one projection is a distribution, and the app shows the distribution wherever it can.`],
   ['It is a snapshot, not a feed', 'Compiled once. It does not update for results, injuries or depth-chart changes.'],
-  ['Efficiency profiles are estimates', 'Calibrated to reproduce known ratings and last season’s results, not derived from play-by-play.'],
+  ['Player grades are still estimates', 'Team efficiency is measured off the play-by-play; the individual grades layered on top of it is not.'],
   ['The playoff number is a heuristic', 'Everything else derives from the ratings. The selection committee does not, so that one figure is an explicit approximation.'],
   ['Coaching is the softest layer', 'Tendencies travel between jobs better than results do — but a first-time head coach with no record is close to unforecastable, and carries the widest interval in the league by design.'],
   ['This is not betting advice', 'The model has no information the market does not, and it is not calibrated against closing lines.'],
 ];
+
+function R2Compare({ adjusted, raw }: { adjusted: number; raw: number }) {
+  const rows = [
+    { label: 'Schedule removed', value: adjusted, fill: 'var(--viz-pos)' },
+    { label: 'Raw season average', value: raw, fill: 'var(--text-faint)' },
+  ];
+  return (
+    <div className="flex flex-col gap-3 py-1">
+      {rows.map((r) => (
+        <div key={r.label} className="flex items-center gap-3">
+          <div className="w-[148px] shrink-0 text-[11.5px]" style={{ color: 'var(--text)' }}>
+            {r.label}
+          </div>
+          <div className="relative h-[22px] flex-1 rounded-[4px]" style={{ background: 'var(--bg-panel-2)' }}>
+            <div
+              className="absolute inset-y-0 left-0 rounded-[4px]"
+              style={{ width: `${(r.value / 0.5) * 100}%`, background: r.fill }}
+            />
+          </div>
+          <div
+            className="w-[54px] shrink-0 text-right text-[12px] tabular-nums"
+            style={{ color: 'var(--text-hi)' }}
+          >
+            {(r.value * 100).toFixed(1)}%
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function Limits() {
   return (

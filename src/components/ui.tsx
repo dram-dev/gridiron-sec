@@ -136,22 +136,32 @@ export function TeamChip({
 /* -------------------------------------------------------------------------- */
 
 export function ProvenanceTag({ value, className = '' }: { value: Provenance; className?: string }) {
-  const verified = value === 'verified';
+  const tier = {
+    measured: {
+      label: 'Measured',
+      dot: 'var(--viz-pos)',
+      title: 'Counted off the 2025 play-by-play by the ETL — 165,849 plays, opponent-adjusted. Not typed by hand.',
+    },
+    verified: {
+      label: 'Verified',
+      dot: 'var(--viz-seq-4)',
+      title: 'Sourced from public reporting while this dataset was compiled.',
+    },
+    modeled: {
+      label: 'Modeled',
+      dot: 'var(--text-faint)',
+      title: 'Analyst estimate derived from the measured and verified layers — a model input, not an observation.',
+    },
+  }[value];
+
   return (
-    <span
-      className={`chip !py-0 !px-1.5 !text-[9.5px] !gap-1 ${className}`}
-      title={
-        verified
-          ? 'Sourced from public reporting while this dataset was compiled.'
-          : 'Analyst estimate derived from the verified layer — a model input, not an observation.'
-      }
-    >
+    <span className={`chip !py-0 !px-1.5 !text-[9.5px] !gap-1 ${className}`} title={tier.title}>
       <span
         aria-hidden
         className="inline-block h-1.5 w-1.5 rounded-full"
-        style={{ background: verified ? 'var(--viz-pos)' : 'var(--text-faint)' }}
+        style={{ background: tier.dot }}
       />
-      {verified ? 'Verified' : 'Modeled'}
+      {tier.label}
     </span>
   );
 }

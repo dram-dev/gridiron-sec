@@ -17,7 +17,7 @@ export const DATASET: DatasetMeta = {
   ],
   notes: [
     'Every record carries a provenance flag. "Verified" identities, records, schedules and accolades were sourced from the public reporting listed above while this dataset was compiled on 5 September 2026.',
-    'Per-play efficiency profiles, usage shares, player grades, PAR values and all seven rating components are the analyst layer — modelled estimates calibrated against the verified layer, not measurements. They are labelled as such throughout the interface.',
+    'Per-play efficiency, returning production, recruiting composites and 2025 results are the measured layer — counted off 165,849 plays of 2025 play-by-play by scripts/etl and opponent-adjusted, with nothing typed by hand. Usage shares, player grades and PAR values remain the analyst layer: modelled estimates calibrated against the measured and verified layers. Every record is labelled with its tier throughout the interface.',
     'This is a static snapshot, not a live feed. It does not update for in-season results, injuries or depth-chart changes; the Scenario Studio exists so you can impose those yourself.',
     'Nothing here is betting advice. The model is built to explain and to stress-test assumptions, and its error bars are wide by design.',
   ],

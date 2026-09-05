@@ -70,16 +70,43 @@ appropriate side of the ball — the arithmetic is visible and checkable in the 
 
 ## Data provenance
 
-Every record carries a `verified` or `modeled` flag, surfaced in the UI wherever it appears.
+Every record carries a `measured`, `verified` or `modeled` flag, surfaced in the UI wherever it
+appears.
 
+- **Measured** — per-play efficiency, 2025 results, returning production and recruiting
+  composites. Counted off 165,849 plays of 2025 play-by-play across 956 games and 236 teams by
+  `scripts/etl`, then opponent-adjusted. Nothing in this tier was typed by hand; the whole layer
+  lives in the generated `src/data/measured.ts` and regenerates with `npm run etl`.
 - **Verified** — the 2026 schedule (all 72 conference games reconciled across both
   participants' published schedules), the Preseason Coaches All-SEC teams, announced Week 1
-  starting quarterbacks, reported portal additions, 2025 final standings, and the coaching
-  carousel. Sourced from public reporting while the dataset was compiled; every source is
-  listed in the Methodology view.
-- **Modeled** — per-play efficiency profiles, usage shares, player grades, PAR values, coach
-  tendency indices and all seven rating components. Analyst estimates calibrated against the
-  verified layer. Model inputs, not measurements.
+  starting quarterbacks, reported portal additions, and the coaching carousel. Sourced from
+  public reporting while the dataset was compiled; every source is listed in the Methodology view.
+- **Modeled** — usage shares, player grades, PAR values, coach tendency indices and all seven
+  rating components. Analyst estimates calibrated against the measured and verified layers.
+  Model inputs, not measurements.
+
+### Rebuilding the measured layer
+
+```bash
+npm run etl:fetch      # ~59 MB of parquet into .data/ (gitignored)
+npm run etl            # regenerate src/data/measured.ts
+npm run etl:validate   # re-run the out-of-sample checks below
+```
+
+Quality metrics are opponent-adjusted because a raw season average would lie about this
+conference: sixteen teams that mostly play each other post depressed offensive numbers and
+flattering defensive ones. Each metric is fit over every FBS game as
+`league mean + offence − defence`, solved by ridge-regularised alternating least squares, with
+the ridge weight chosen per metric by five-fold cross-validation on held-out games.
+
+The adjustment is justified out of sample, not by assertion. Fitting on four fifths of the
+season and predicting the final margin of the games left out, removing the schedule explains
+**39.2%** of the variance in margin against **25.1%** for a raw season average.
+
+Pace and style metrics — tempo, pass rate, fourth-down aggression, special teams, field
+position, turnover margin — are left unadjusted, since an opponent does not choose how fast you
+snap the ball. And no garbage-time filter is applied: the conventional cut was tested and made
+the ratings worse at every threshold, monotonically.
 
 This is a static snapshot compiled 5 September 2026. It does not update for results or
 injuries; the Scenario Studio exists so you can impose those yourself. It is not betting advice.
@@ -105,7 +132,7 @@ git clone https://github.com/dram-dev/gridiron-sec.git
 cd gridiron-sec
 npm install
 npm run dev          # development server
-npm test             # 52 engine and data-integrity tests
+npm test             # 79 engine, data-integrity and measured-layer tests
 npm run typecheck
 npm run build        # production build
 npm run build:artifact   # single-file build, everything inlined
@@ -115,14 +142,17 @@ npm run build:artifact   # single-file build, everything inlined
 
 ```
 src/
-  data/       typed schema and the curated 2026 dataset
-              teams · coaches · players · schedule · meta
+  data/       typed schema, the measured layer and the curated 2026 dataset
+              measured (generated) · teams · coaches · players · schedule · meta
   engine/     pure, deterministic forecasting
               ratings · game · season · players · scenario · rng · constants
   components/ chart and interface primitives
   views/      the seven dashboard views
   state/      one reducer holding the scenario; everything else derives from it
   workers/    season simulation, off the main thread
+scripts/
+  etl/        play-by-play → src/data/measured.ts
+              sources · fetch · adjust · build · validate
   lib/        validated visualisation palette and formatting
 ```
 
