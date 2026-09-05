@@ -17,7 +17,8 @@
     "etl:players": "vite-node scripts/etl/players.mjs",
     "etl:backtest": "node --max-old-space-size=8000 scripts/etl/backtest.mjs",
     "etl:weekly": "npm run etl:fetch && npm run etl && npm run typecheck && npm test && npm run build",
-    "etl:inseason": "node --max-old-space-size=8000 scripts/etl/inseason.mjs"
+    "etl:inseason": "node --max-old-space-size=8000 scripts/etl/inseason.mjs",
+    "etl:snapshot": "vite-node scripts/etl/snapshot.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
