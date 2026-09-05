@@ -7,6 +7,7 @@ import {
 import { ROSTERS } from '../data/players';
 import { ALL_GAMES } from '../data/schedule';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
+import { CONFERENCES } from '../data/conferences';
 import type { Game, TeamId } from '../data/types';
 import {
   driveOdds, marginPercentiles, projectGame, simulateGame, type GameProjection,
@@ -440,7 +441,7 @@ export function MatchupLab() {
       <Panel>
         <PanelHead
           title="Team profiles"
-          subtitle="Both rosters on the same normalised axes. Every value is scaled across the sixteen conference teams."
+          subtitle={`Both rosters on the same normalised axes. Every value is scaled across all ${TEAMS.length} projected teams, so a cross-conference comparison reads on one scale.`}
         />
         <div className="grid gap-5 px-5 pb-5 lg:grid-cols-[auto_1fr] lg:items-center">
           <Radar
@@ -608,8 +609,13 @@ function TeamPicker({
           className="field !text-[14px] !font-semibold"
           aria-label={`${label} team`}
         >
-          {TEAMS.filter((t) => t.id !== exclude).map((t) => (
-            <option key={t.id} value={t.id}>{t.school}</option>
+          {/* Grouped, because picking across conferences is the point of this view. */}
+          {CONFERENCES.map((c) => (
+            <optgroup key={c.id} label={c.name}>
+              {c.teams.filter((t) => t.id !== exclude).map((t) => (
+                <option key={t.id} value={t.id}>{t.school}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>

@@ -3,6 +3,7 @@ import { BarList, Radar, Sparkline } from '../components/charts';
 import { Divider, InfoDot, Label, Panel, PanelHead, ProvenanceTag, Segmented, Stat, Table, Td, Th, TeamMark } from '../components/ui';
 import { COACHES, COACH_BY_TEAM } from '../data/coaches';
 import { TEAM_BY_ID } from '../data/teams';
+import { CONFERENCE_BY_ID } from '../data/conferences';
 import { DERIVED } from '../engine/model';
 import type { Coach } from '../data/types';
 import { CATEGORICAL, pct, signed, teamInk } from '../lib/viz';
@@ -12,7 +13,7 @@ import { useStore } from '../state/store';
  * Coach Intelligence.
  *
  * Rosters turn over every year; staffs do not. This view is the argument for
- * why six first-year SEC head coaches are still forecastable — the tendencies
+ * why a first-year head coach is still forecastable at all — the tendencies
  * travel even when the players do not.
  * ========================================================================== */
 
@@ -379,7 +380,7 @@ function CoachProfile({ coach }: { coach: Coach }) {
           { l: 'Versus top ten', v: coach.vsTop10 ? `${coach.vsTop10.wins}–${coach.vsTop10.losses}` : '—', s: 'The hardest games' },
           { l: 'Coaching value', v: signed(coachingValue), s: 'derived points of team rating', tone: coachingValue >= 0 ? ('positive' as const) : ('negative' as const) },
           { l: 'Volatility', v: `${coach.volatility.toFixed(2)}×`, s: 'game-to-game variance' },
-          { l: '2026 projection', v: `${outlook.meanWins.toFixed(1)}–${(12 - outlook.meanWins).toFixed(1)}`, s: `${pct(outlook.pChampion, 1)} to win the SEC` },
+          { l: '2026 projection', v: `${outlook.meanWins.toFixed(1)}–${(12 - outlook.meanWins).toFixed(1)}`, s: `${pct(outlook.pChampion, 1)} to win the ${CONFERENCE_BY_ID[TEAM_BY_ID[coach.teamId].conference].name}` },
         ].map((x) => (
           <div key={x.l} className="px-4 py-3" style={{ background: 'var(--bg-panel)' }}>
             <Stat label={x.l} value={x.v} sub={x.s} size="sm" tone={x.tone} />

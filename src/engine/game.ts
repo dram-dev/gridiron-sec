@@ -66,7 +66,7 @@ export function ratedOpponent(id: string): Rated {
   return {
     id: o.id,
     name: o.name,
-    abbr: o.id,
+    abbr: o.abbr,
     total: o.rating,
     offense: o.rating / 2,
     defense: o.rating / 2,

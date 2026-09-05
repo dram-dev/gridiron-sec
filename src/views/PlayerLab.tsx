@@ -9,6 +9,7 @@ import { ALL_PLAYERS, PLAYER_BY_ID, POSITION_SIDE } from '../data/players';
 import { MEASURED_PLAYERS } from '../data/measuredPlayers';
 import { MEASURED_META } from '../data/measured';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
+import { CONFERENCES } from '../data/conferences';
 import type { Player, Position } from '../data/types';
 import { projectPlayerGame, projectPlayerSeason } from '../engine/players';
 import { teamSchedule } from '../engine/season';
@@ -83,8 +84,12 @@ export function PlayerLab() {
             className="field max-w-[176px]"
             aria-label="Filter by team"
           >
-            <option value="ALL">All sixteen teams</option>
-            {TEAMS.map((t) => <option key={t.id} value={t.id}>{t.school}</option>)}
+            <option value="ALL">All {TEAMS.length} teams</option>
+            {CONFERENCES.map((c) => (
+              <optgroup key={c.id} label={c.name}>
+                {c.teams.map((t) => <option key={t.id} value={t.id}>{t.school}</option>)}
+              </optgroup>
+            ))}
           </select>
           <div className="flex flex-wrap gap-1">
             {POSITION_FILTERS.map((p) => (

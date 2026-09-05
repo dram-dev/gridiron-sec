@@ -40,6 +40,21 @@ console.log(`reading ${SOURCES.schedule.file} … ${rows.length.toLocaleString()
 /** Outside opponents keep their numeric source id: unique, and never guessed. */
 const outsideId = (espn) => `x${espn}`;
 
+/**
+ * A short label for an outside opponent.
+ *
+ * The id is a source number, which is the right thing to key on and the wrong
+ * thing to show a reader — a schedule that reads "@x2050" tells nobody who the
+ * opponent was. Prefer the abbreviation the source publishes, and fall back to
+ * initials for a multi-word name or a truncation for a single-word one.
+ */
+function abbreviate(sourceAbbr, name) {
+  if (sourceAbbr && sourceAbbr.length <= 5 && sourceAbbr !== '-') return sourceAbbr.toUpperCase();
+  const words = String(name).replace(/[()]/g, '').split(/\s+/).filter(Boolean);
+  if (words.length > 1) return words.map((w) => w[0]).join('').slice(0, 4).toUpperCase();
+  return String(name).slice(0, 4).toUpperCase();
+}
+
 const games = [];
 const outside = new Map();
 
@@ -55,9 +70,11 @@ for (const g of rows) {
     if (mine || outside.has(espn)) continue;
     const side = espn === home ? 'home' : 'away';
     const measured = MEASURED_OPPONENT[espn];
+    const name = g[`${side}_team`] ?? measured?.name ?? `Team ${espn}`;
     outside.set(espn, {
       id: outsideId(espn),
-      name: g[`${side}_team`] ?? measured?.name ?? `Team ${espn}`,
+      abbr: abbreviate(g[`${side}_abbreviation`], name),
+      name,
       conference: g[`${side}_conference`] ?? measured?.conference ?? 'FBS',
       // An FCS visitor has no rating of its own; the pooled FCS effect is what
       // the fit actually measured, and it is the honest figure to use.

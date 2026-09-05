@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { BumpChart, DivergingPairs, FanChart, Ridgeline, type FanMarker } from '../components/timeseries';
 import { Divider, InfoDot, Panel, PanelHead, Segmented, Stat, TeamMark } from '../components/ui';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
+import { CONFERENCES, lensCount } from '../data/conferences';
 import { WEEKS } from '../data/schedule';
 import type { TeamId } from '../data/types';
 import { resolveRated } from '../engine/game';
@@ -21,7 +22,7 @@ import { useStore } from '../state/store';
 type Lens = 'wins' | 'standing';
 
 export function Trajectory() {
-  const { state, dispatch, season, ratings, projectionById, go } = useStore();
+  const { state, dispatch, season, ratings, lensTeams, projectionById, go } = useStore();
   const mode = state.theme;
   const teamId = state.selectedTeam;
   const team = TEAM_BY_ID[teamId];
@@ -51,21 +52,42 @@ export function Trajectory() {
   }, [teamId, ratings, projectionById]);
 
   /* ---- Standings race -------------------------------------------------- */
-  const bumpSeries = useMemo(
-    () =>
-      TEAMS.map((t) => ({
-        key: t.id,
-        label: t.abbr,
-        color: t.primary,
-        values: season.trajectories[t.id].position.map((p) => p.p50),
-      })),
-    [season],
+  /*
+   * One race per conference, always.
+   *
+   * A standing is a position inside a conference, so two teams can both be
+   * first and neither is wrong. Drawing all thirty-four on one axis would put
+   * two separate races on top of each other and imply a single table that does
+   * not exist — so each conference in view gets its own chart.
+   */
+  const races = useMemo(
+    () => {
+      const ids = new Set(lensTeams.map((t) => t.id as string));
+      return CONFERENCES
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          size: c.teams.length,
+          series: c.teams.filter((t) => ids.has(t.id)).map((t) => ({
+            key: t.id,
+            label: t.abbr,
+            color: t.primary,
+            values: season.trajectories[t.id].position.map((p) => p.p50),
+          })),
+        }))
+        .filter((g) => g.series.length > 0)
+        // The selected team's own race comes first, so the chart a reader came
+        // here for is the one they land on.
+        .sort((a, b) => Number(b.id === TEAM_BY_ID[teamId].conference)
+          - Number(a.id === TEAM_BY_ID[teamId].conference));
+    },
+    [season, lensTeams, teamId],
   );
 
   /* ---- Ridgeline of final win totals ----------------------------------- */
   const ridge = useMemo(
     () =>
-      [...TEAMS]
+      [...lensTeams]
         .sort((a, b) => season.teams[b.id].meanWins - season.teams[a.id].meanWins)
         .map((t) => {
           const o = season.teams[t.id];
@@ -76,7 +98,7 @@ export function Trajectory() {
             summary: `${o.meanWins.toFixed(1)} W`,
           };
         }),
-    [season],
+    [season, lensTeams],
   );
 
   /* ---- Leverage -------------------------------------------------------- */
@@ -182,25 +204,27 @@ export function Trajectory() {
       </Panel>
 
       {/* ---- Standings race ------------------------------------------------ */}
-      <Panel>
-        <PanelHead
-          title="The race"
-          subtitle="Median conference standing for all sixteen, week by week. Hover any line to follow it; the selected team stays lit. Lines that cross are teams genuinely trading places across the simulation, not noise."
-        />
-        <div className="px-5 pb-5">
-          <BumpChart
-            series={bumpSeries}
-            weeks={WEEKS.map((w) => w.week)}
-            positions={16}
-            height={400}
-            highlight={hoverTeam ?? teamId}
-            onHighlight={setHoverTeam}
+      {races.map((race) => (
+        <Panel key={race.id}>
+          <PanelHead
+            title={races.length > 1 ? `The ${race.name} race` : 'The race'}
+            subtitle={`Median standing inside the ${race.name}, week by week. Hover any line to follow it; the selected team stays lit. Lines that cross are teams genuinely trading places across the simulation, not noise.`}
           />
-          <p className="mt-2 text-[11px]" style={{ color: 'var(--text-faint)' }}>
-            Position 1 at the top. Week numbers along the bottom; final median position labelled at the right.
-          </p>
-        </div>
-      </Panel>
+          <div className="px-5 pb-5">
+            <BumpChart
+              series={race.series}
+              weeks={WEEKS.map((w) => w.week)}
+              positions={race.size}
+              height={race.size > 16 ? 430 : 400}
+              highlight={hoverTeam ?? teamId}
+              onHighlight={setHoverTeam}
+            />
+            <p className="mt-2 text-[11px]" style={{ color: 'var(--text-faint)' }}>
+              Position 1 at the top, {race.size} at the bottom. Week numbers along the bottom; final median position labelled at the right.
+            </p>
+          </div>
+        </Panel>
+      ))}
 
       {/* ---- Leverage ------------------------------------------------------- */}
       <Panel>
@@ -279,7 +303,7 @@ export function Trajectory() {
       {/* ---- Ridgeline ------------------------------------------------------ */}
       <Panel>
         <PanelHead
-          title="Sixteen seasons at once"
+          title={`${lensCount(state.lens)[0].toUpperCase()}${lensCount(state.lens).slice(1)} seasons at once`}
           subtitle="Every team's regular-season win distribution, ordered by projection. Height is how often a win total comes up; a wide, flat shape is a team the model genuinely cannot pin down."
         />
         <div className="px-5 pb-5">

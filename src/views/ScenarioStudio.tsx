@@ -8,6 +8,7 @@ import {
 import { ROSTERS } from '../data/players';
 import { CONFERENCE_GAMES } from '../data/schedule';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
+import { CONFERENCES } from '../data/conferences';
 import type { Availability, Player, TeamId } from '../data/types';
 import { WEATHER_PRESETS } from '../engine/scenario';
 import { pct, signed, teamInk } from '../lib/viz';
@@ -27,7 +28,8 @@ type Tab = 'availability' | 'dials' | 'conditions' | 'results';
 
 export function ScenarioStudio() {
   const {
-    state, dispatch, baselineRatings, ranked, season, baselineSeason, editCount, simulating, go,
+    state, dispatch, baselineRatings, ranked, lensRanked, lensTeams, season, baselineSeason,
+    editCount, simulating, go,
   } = useStore();
   const mode = state.theme;
   const [tab, setTab] = useState<Tab>('availability');
@@ -47,10 +49,17 @@ export function ScenarioStudio() {
         // never fills with spurious ±0.0 rows.
         .filter((m) => Math.abs(m.ratingDelta) > 0.01 || Math.abs(m.winDelta) > 0.12)
         .sort((a, b) => Math.abs(b.winDelta) - Math.abs(a.winDelta)),
-    [ranked, baselineRatings, season, baselineSeason],
+    [lensRanked, baselineRatings, season, baselineSeason],
   );
 
   /* ---- Presets --------------------------------------------------------- */
+
+  const groups = useMemo(() => {
+    const ids = new Set(lensTeams.map((t) => t.id as string));
+    return CONFERENCES
+      .map((c) => ({ id: c.id, name: c.name, teams: c.teams.filter((t) => ids.has(t.id)) }))
+      .filter((g) => g.teams.length > 0);
+  }, [lensTeams]);
 
   const applyNeutralFields = () => dispatch({ type: 'homeField', value: 0 });
 
@@ -137,7 +146,7 @@ export function ScenarioStudio() {
                       <Th width={150}>Team</Th>
                       <Th align="right" width={90}>Rating</Th>
                       <Th align="right" width={100}>Projected wins</Th>
-                      <Th align="right" width={110}>SEC title</Th>
+                      <Th align="right" width={110}>Conf title</Th>
                       <Th align="right" width={110}>Playoff bid</Th>
                       <Th width={120}>Rank move</Th>
                     </tr>
@@ -218,15 +227,15 @@ export function ScenarioStudio() {
       <Panel>
         <PanelHead
           title="Projected conference standings"
-          subtitle="Ordered by simulated conference winning percentage. The bar shows how often each team finishes in the top two, the top six, or outside them."
-          right={<InfoDot text="The top two by conference winning percentage meet in Atlanta. Ties are broken by head-to-head, then overall record, then rating." />}
+          subtitle="Ordered by simulated conference winning percentage, inside each conference. The bar shows how often each team finishes in the top two, the top six, or outside them."
+          right={<InfoDot text="The top two by conference winning percentage meet in that conference's championship game. Ties are broken by head-to-head, then overall record, then rating." />}
         />
         <Table>
           <thead>
             <tr>
               <Th width={38} align="right">#</Th>
               <Th width={160}>Team</Th>
-              <Th align="right" width={96}>SEC record</Th>
+              <Th align="right" width={96}>Conf record</Th>
               <Th align="right" width={92}>Overall</Th>
               <Th align="right" width={78}>Title game</Th>
               <Th align="right" width={78}>Champion</Th>
@@ -235,9 +244,22 @@ export function ScenarioStudio() {
             </tr>
           </thead>
           <tbody>
-            {[...TEAMS]
-              .sort((a, b) => season.teams[a.id].meanFinish - season.teams[b.id].meanFinish)
-              .map((t, i) => {
+            {/*
+              * Grouped by conference, because a finishing position belongs to
+              * one. Sorting thirty-four teams by mean finish would interleave
+              * two different first places into a standing that does not exist.
+              */}
+            {groups.flatMap((group) => [
+              ...(groups.length > 1 ? [(
+                <tr key={`head-${group.id}`}>
+                  <td colSpan={8} className="px-3 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.07em]" style={{ color: 'var(--text-faint)' }}>
+                    {group.name}
+                  </td>
+                </tr>
+              )] : []),
+              ...[...group.teams]
+                .sort((a, b) => season.teams[a.id].meanFinish - season.teams[b.id].meanFinish)
+                .map((t, i) => {
                 const o = season.teams[t.id];
                 const b = baselineSeason.teams[t.id];
                 const top2 = o.finishDistribution.slice(0, 2).reduce((s, v) => s + v, 0);
@@ -279,7 +301,8 @@ export function ScenarioStudio() {
                     </Td>
                   </tr>
                 );
-              })}
+                }),
+            ])}
           </tbody>
         </Table>
         <div className="flex flex-wrap items-center gap-4 px-4 py-2.5 text-[10.5px]" style={{ color: 'var(--text-low)', borderTop: '1px solid var(--line-faint)' }}>
@@ -301,7 +324,7 @@ export function ScenarioStudio() {
 /* -------------------------------------------------------------------------- */
 
 function AvailabilityPanel() {
-  const { state, dispatch, ratings, baselineRatings } = useStore();
+  const { state, dispatch, ratings, baselineRatings, lensTeams } = useStore();
   const [teamFilter, setTeamFilter] = useState<TeamId>('UGA');
   const [query, setQuery] = useState('');
 
@@ -342,7 +365,7 @@ function AvailabilityPanel() {
           }
         />
         <div className="flex flex-wrap gap-1.5 px-4 pb-2">
-          {TEAMS.map((t) => (
+          {lensTeams.map((t) => (
             <button
               key={t.id}
               onClick={() => setTeamFilter(t.id)}

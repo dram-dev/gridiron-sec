@@ -8,7 +8,9 @@ import {
 import { COACH_BY_TEAM } from '../data/coaches';
 import { ALL_PLAYERS, POSITION_SIDE } from '../data/players';
 import { ALL_GAMES, CONFERENCE_GAMES, WEEKS } from '../data/schedule';
-import { TEAMS, TEAM_BY_ID } from '../data/teams';
+import { TEAM_BY_ID } from '../data/teams';
+import { CONFERENCE_BY_ID, lensCount } from '../data/conferences';
+import { ConferenceClash } from '../components/ConferenceClash';
 import type { TeamId } from '../data/types';
 import type { GameProjection } from '../engine/game';
 import { pct, signed, teamInk } from '../lib/viz';
@@ -17,13 +19,14 @@ import { useStore } from '../state/store';
 type SortKey = 'rank' | 'rating' | 'offense' | 'defense' | 'wins' | 'title' | 'playoff' | 'sos';
 
 export function CommandCenter() {
-  const { ranked, season, baselineSeason, state, go, projectionById, editCount } = useStore();
+  const { ranked, lensTeams, lensRanked, season, baselineSeason, state, go, projectionById, editCount } = useStore();
+  const confOf = (id: TeamId) => CONFERENCE_BY_ID[TEAM_BY_ID[id].conference];
   const mode = state.theme;
   const [sort, setSort] = useState<SortKey>('rank');
   const [dir, setDir] = useState<'asc' | 'desc'>('asc');
 
   const rows = useMemo(() => {
-    const data = ranked.map((r) => {
+    const data = lensRanked.map((r) => {
       const o = season.teams[r.teamId];
       return { r, o, coach: COACH_BY_TEAM[r.teamId] };
     });
@@ -40,7 +43,7 @@ export function CommandCenter() {
       }
     };
     return data.sort((a, b) => (dir === 'asc' ? get(b) - get(a) : get(a) - get(b)));
-  }, [ranked, season, sort, dir]);
+  }, [lensRanked, season, sort, dir]);
 
   const toggle = (key: SortKey) => {
     if (sort === key) setDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -52,14 +55,22 @@ export function CommandCenter() {
 
   /* ---- Headline numbers ------------------------------------------------ */
 
-  const favourite = [...ranked].sort((a, b) => season.teams[b.teamId].pChampion - season.teams[a.teamId].pChampion)[0];
-  const topPlayer = useMemo(() => [...ALL_PLAYERS].sort((a, b) => b.par - a.par)[0], []);
-  const firstYearCoaches = TEAMS.filter((t) => COACH_BY_TEAM[t.id]?.tenureYear === 1);
+  const favourite = [...lensRanked].sort((a, b) => season.teams[b.teamId].pChampion - season.teams[a.teamId].pChampion)[0];
+  const inLens = useMemo(() => new Set(lensTeams.map((t) => t.id as string)), [lensTeams]);
+  const topPlayer = useMemo(
+    () => ALL_PLAYERS.filter((p) => inLens.has(p.teamId)).sort((a, b) => b.par - a.par)[0],
+    [inLens],
+  );
+  const firstYearCoaches = lensTeams.filter((t) => COACH_BY_TEAM[t.id]?.tenureYear === 1);
 
   /** Where the model most disagrees with the AP preseason poll. */
   const divergence = useMemo(() => {
-    const polled = TEAMS.filter((t) => t.apPreseason !== null);
-    const modelOrder = ranked.map((r) => r.teamId);
+    // Both ranks must come from the same pool. The AP position is a rank among
+    // the teams it actually ranks, so the model's has to be too — comparing a
+    // rank out of thirty-four against a rank out of thirteen invents a gap.
+    const polled = lensTeams.filter((t) => t.apPreseason !== null);
+    const polledIds = new Set(polled.map((t) => t.id as string));
+    const modelOrder = ranked.filter((r) => polledIds.has(r.teamId)).map((r) => r.teamId);
     const nationalGuess = (id: TeamId) => modelOrder.indexOf(id) + 1;
     return polled
       .map((t) => {
@@ -68,10 +79,10 @@ export function CommandCenter() {
           .sort((a, b) => (a.apPreseason ?? 99) - (b.apPreseason ?? 99))
           .findIndex((x) => x.id === t.id) + 1;
         const modelSecRank = nationalGuess(t.id);
-        return { team: t, apSecRank, modelSecRank, gap: apSecRank - modelSecRank };
+        return { team: t, apSecRank, modelSecRank, polled: polled.length, gap: apSecRank - modelSecRank };
       })
       .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap));
-  }, [ranked]);
+  }, [ranked, lensTeams]);
 
   const tightest = useMemo(() => {
     return CONFERENCE_GAMES
@@ -82,13 +93,13 @@ export function CommandCenter() {
 
   const [boardScope, setBoardScope] = useState<'all' | 'skill' | 'defense'>('all');
   const valueBoard = useMemo(() => {
-    const pool = ALL_PLAYERS.filter((p) =>
+    const pool = ALL_PLAYERS.filter((p) => inLens.has(p.teamId)).filter((p) =>
       boardScope === 'all' ? true
       : boardScope === 'defense' ? POSITION_SIDE[p.position] === 'defense'
       : p.position !== 'QB' && POSITION_SIDE[p.position] === 'offense',
     );
     return [...pool].sort((a, b) => b.par - a.par).slice(0, 12);
-  }, [boardScope]);
+  }, [boardScope, inLens]);
 
   return (
     <div className="space-y-4">
@@ -101,7 +112,7 @@ export function CommandCenter() {
             {
               label: 'Championship favourite',
               value: favourite.team.abbr,
-              sub: `${pct(season.teams[favourite.teamId].pChampion, 1)} to win the SEC`,
+              sub: `${pct(season.teams[favourite.teamId].pChampion, 1)} to win the ${confOf(favourite.teamId).name}`,
               tone: 'accent' as const,
               onClick: () => go('team', { teamId: favourite.teamId }),
             },
@@ -129,7 +140,7 @@ export function CommandCenter() {
             {
               label: 'First-year staffs',
               value: String(firstYearCoaches.length),
-              sub: 'of sixteen — a record cycle',
+              sub: `of ${lensCount(state.lens)}`,
               tone: 'default' as const,
               onClick: () => go('coach'),
             },
@@ -153,6 +164,11 @@ export function CommandCenter() {
       </Panel>
 
       {/* ------------------------------------------------------------------ */}
+      {/* Conference against conference — only when both are in view          */}
+      {/* ------------------------------------------------------------------ */}
+      {state.lens === 'ALL' && <ConferenceClash />}
+
+      {/* ------------------------------------------------------------------ */}
       {/* Power ratings                                                      */}
       {/* ------------------------------------------------------------------ */}
       <Panel>
@@ -174,7 +190,7 @@ export function CommandCenter() {
               <Th align="right" {...sortProps('offense')} title="Offensive points above average">Off</Th>
               <Th align="right" {...sortProps('defense')} title="Defensive points above average">Def</Th>
               <Th align="right" {...sortProps('wins')} title="Mean simulated wins">Proj</Th>
-              <Th align="right" {...sortProps('title')} title="Probability of winning the SEC championship">SEC</Th>
+              <Th align="right" {...sortProps('title')} title="Probability of winning the conference championship">Title</Th>
               <Th align="right" {...sortProps('playoff')} title="Modelled playoff bid probability">CFP</Th>
               <Th align="right" {...sortProps('sos')} title="Average opponent rating">SOS</Th>
               <Th width={128}>Season shape</Th>
@@ -277,7 +293,7 @@ export function CommandCenter() {
                   </span>
                 ),
                 value: d.gap,
-                detail: `AP has ${d.team.school} ${d.apSecRank} in the SEC; the model has them ${d.modelSecRank}.`,
+                detail: `Among the ${d.polled} teams the AP ranks, it has ${d.team.school} ${d.apSecRank}; the model has them ${d.modelSecRank}.`,
                 onClick: () => go('team', { teamId: d.team.id }),
               }))}
             />
@@ -292,7 +308,11 @@ export function CommandCenter() {
         <Panel>
           <PanelHead
             title="Championship odds"
-            subtitle="Probability of winning the SEC title game in Atlanta on 5 December."
+            subtitle={
+              state.lens === 'ALL'
+                ? 'Probability of winning a conference championship. Two titles are on the board, so these do not sum to one.'
+                : `Probability of winning the ${CONFERENCE_BY_ID[state.lens].name} title game in ${CONFERENCE_BY_ID[state.lens].championship.city}.`
+            }
             right={<InfoDot text="Derived from the season simulation: top two by conference winning percentage meet, with head-to-head as the first tiebreaker." />}
           />
           <div className="px-4 pb-4">
@@ -300,8 +320,8 @@ export function CommandCenter() {
               labelWidth={78}
               valueWidth={52}
               format={(v) => pct(v, 1)}
-              max={Math.max(...TEAMS.map((t) => season.teams[t.id].pChampion))}
-              data={[...TEAMS]
+              max={Math.max(...lensTeams.map((t) => season.teams[t.id].pChampion))}
+              data={[...lensTeams]
                 .sort((a, b) => season.teams[b.id].pChampion - season.teams[a.id].pChampion)
                 .slice(0, 10)
                 .map((t) => ({

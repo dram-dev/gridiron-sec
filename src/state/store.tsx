@@ -3,7 +3,8 @@ import {
   type ReactNode,
 } from 'react';
 import { PLAYER_BY_ID } from '../data/players';
-import type { Availability, TeamId } from '../data/types';
+import type { Availability, Conference, Team, TeamId } from '../data/types';
+import { teamsUnder } from '../data/conferences';
 import { rateAll, rankRatings, type RankedRating, type RatingTable } from '../engine/ratings';
 import { projectAllGames, simulateSeason, type SeasonResult } from '../engine/season';
 import type { GameProjection } from '../engine/game';
@@ -26,8 +27,19 @@ import type { Mode } from '../lib/viz';
 
 export type { ViewId } from '../lib/routing';
 
+/**
+ * Which conference the league-wide views are looking at.
+ *
+ * Team, player, matchup and coach views always reach across both — comparing
+ * Ohio State to Georgia is the point of having them in one app. The lens
+ * applies to the views that rank, stand or simulate a league, because those
+ * only mean something inside one conference.
+ */
+export type Lens = Conference | 'ALL';
+
 interface State {
   view: ViewId;
+  lens: Lens;
   scenario: Scenario;
   selectedTeam: TeamId;
   comparisonTeam: TeamId;
@@ -40,6 +52,7 @@ interface State {
 
 type Action =
   | { type: 'view'; view: ViewId }
+  | { type: 'lens'; lens: Lens }
   | { type: 'selectTeam'; teamId: TeamId }
   | { type: 'comparisonTeam'; teamId: TeamId }
   | { type: 'selectPlayer'; playerId: string | null }
@@ -79,6 +92,7 @@ function initial(): State {
 
   return {
     view: route?.view ?? 'command',
+    lens: 'ALL',
     scenario: makeBaselineScenario(),
     // A player link also selects that player's team, so the rest of the app is
     // pointed somewhere sensible when the reader navigates away.
@@ -96,6 +110,8 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'view':
       return { ...state, view: action.view };
+    case 'lens':
+      return { ...state, lens: action.lens };
     case 'selectTeam':
       return { ...state, selectedTeam: action.teamId };
     case 'comparisonTeam':
@@ -191,6 +207,15 @@ interface Derived {
 interface Store extends Derived {
   state: State;
   dispatch: React.Dispatch<Action>;
+  /**
+   * The teams under the current lens, and the rating table narrowed to them.
+   *
+   * Views that rank or stand a league read these rather than TEAMS, so the
+   * lens is applied once here instead of being re-derived in every view — and
+   * so a view cannot forget to apply it.
+   */
+  lensTeams: Team[];
+  lensRanked: RankedRating[];
   projectionById: Map<string, GameProjection>;
   baselineProjectionById: Map<string, GameProjection>;
   go: (view: ViewId, opts?: { teamId?: TeamId; playerId?: string; gameId?: string }) => void;
@@ -335,9 +360,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'view', view });
   }, []);
 
+  const lensTeams = useMemo(() => teamsUnder(state.lens), [state.lens]);
+  const lensRanked = useMemo(() => {
+    if (state.lens === 'ALL') return ranked;
+    const inLens = new Set(lensTeams.map((t) => t.id as string));
+    // Re-rank inside the lens: second in the SEC is not second of thirty-four.
+    return ranked.filter((r) => inLens.has(r.teamId)).map((r, i) => ({ ...r, rank: i + 1 }));
+  }, [ranked, lensTeams, state.lens]);
+
   const value: Store = {
     state,
     dispatch,
+    lensTeams,
+    lensRanked,
     ratings,
     baselineRatings: BASELINE_RATINGS,
     ranked,

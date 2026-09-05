@@ -5,7 +5,8 @@ import {
   IconBook, IconClipboard, IconGauge, IconMenu, IconMoon, IconPerson, IconReset,
   IconSearch, IconShield, IconSliders, IconSpark, IconSun, IconSwords, IconTrend,
 } from './components/icons';
-import { useStore, type ViewId } from './state/store';
+import { useStore, type Lens, type ViewId } from './state/store';
+import { CONFERENCES } from './data/conferences';
 import { CommandCenter } from './views/CommandCenter';
 import { TeamLab } from './views/TeamLab';
 import { PlayerLab } from './views/PlayerLab';
@@ -16,6 +17,53 @@ import { Methodology } from './views/Methodology';
 import { HowItWorks } from './views/HowItWorks';
 import { ModelLab } from './views/ModelLab';
 import { Trajectory } from './views/Trajectory';
+
+/**
+ * Which conference the league-wide views are looking at.
+ *
+ * "Both" is the default because the reason to have two conferences in one app
+ * is to compare them. The lens narrows the views where a league is ranked,
+ * stood or simulated — a standing means nothing across conferences — and the
+ * team, player, matchup and coach views ignore it entirely.
+ */
+function LensSwitch() {
+  const { state, dispatch } = useStore();
+  const options: { id: Lens; label: string; title: string }[] = [
+    { id: 'ALL', label: 'Both', title: 'All 34 teams' },
+    ...CONFERENCES.map((c) => ({
+      id: c.id as Lens,
+      label: c.short,
+      title: `${c.name} only — ${c.teams.length} teams`,
+    })),
+  ];
+  return (
+    <div
+      className="mt-3 flex gap-0.5 rounded-[9px] p-0.5"
+      style={{ background: 'var(--bg-panel)', border: '1px solid var(--line)' }}
+      role="group"
+      aria-label="Conference"
+    >
+      {options.map((o) => {
+        const active = state.lens === o.id;
+        return (
+          <button
+            key={o.id}
+            onClick={() => dispatch({ type: 'lens', lens: o.id })}
+            title={o.title}
+            aria-pressed={active}
+            className="flex-1 rounded-[7px] py-1 text-[10.5px] font-semibold transition-colors"
+            style={{
+              background: active ? 'var(--accent-dim)' : 'transparent',
+              color: active ? 'var(--accent)' : 'var(--text-low)',
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const NAV: { id: ViewId; label: string; icon: typeof IconGauge; hint: string }[] = [
   { id: 'command', label: 'Command Center', icon: IconGauge, hint: 'League overview' },
@@ -31,7 +79,7 @@ const NAV: { id: ViewId; label: string; icon: typeof IconGauge; hint: string }[]
 ];
 
 const TITLES: Record<ViewId, { title: string; blurb: string }> = {
-  command: { title: 'Command Center', blurb: 'Where the sixteen stand, and what the model disagrees with' },
+  command: { title: 'Command Center', blurb: 'Where the conference stands, and what the model disagrees with' },
   team: { title: 'Team Lab', blurb: 'One roster, decomposed to the point where you can argue with it' },
   trajectory: { title: 'Trajectory', blurb: 'Win paths, the standings race, and which games actually decide it' },
   player: { title: 'Player Lab', blurb: 'Usage, efficiency and what each player is worth in points' },
@@ -93,7 +141,7 @@ export default function App() {
             </span>
             <div className="min-w-0">
               <div className="text-[13.5px] font-bold leading-tight tracking-[-0.01em]" style={{ color: 'var(--text-hi)' }}>
-                Gridiron SEC
+                Gridiron
               </div>
               <div className="text-[10.5px] leading-tight" style={{ color: 'var(--text-low)' }}>
                 {MEASURED_META.throughWeek > 0
@@ -102,6 +150,8 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          <LensSwitch />
         </div>
 
         <div className="px-3">

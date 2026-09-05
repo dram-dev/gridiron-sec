@@ -6,6 +6,7 @@ import {
   Table, Td, Th, TeamMark,
 } from '../components/ui';
 import { MEASURED_ANCHOR } from '../data/measured';
+import { lensLabel } from '../data/conferences';
 import { ROSTERS } from '../data/players';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
 import type { TeamId } from '../data/types';
@@ -104,7 +105,7 @@ const SPECS: CoefficientSpec[] = [
 const GROUPS = ['Units', 'Roster & programme', 'Coaching', 'Calibration'] as const;
 
 export function ModelLab() {
-  const { state, dispatch, ratings, go } = useStore();
+  const { state, dispatch, ratings, lensTeams, go } = useStore();
   const mode = state.theme;
   const coeffs = state.scenario.coefficients;
   const [inspect, setInspect] = useState<TeamId>('UGA');
@@ -124,7 +125,7 @@ export function ModelLab() {
   );
 
   const ordered = useMemo(
-    () => [...TEAMS].sort((a, b) => ratings[b.id].total - ratings[a.id].total),
+    () => [...lensTeams].sort((a, b) => ratings[b.id].total - ratings[a.id].total),
     [ratings],
   );
   const spread = ordered.length
@@ -158,7 +159,7 @@ export function ModelLab() {
       <Panel>
         <PanelHead
           title="The model is twelve numbers"
-          subtitle="No team carries a rating constant. Every component is derived from that team's observations by the coefficients below, applied identically to all sixteen. Move one and the whole league re-derives."
+          subtitle={`No team carries a rating constant. Every component is derived from that team's observations by the coefficients below, applied identically to all ${TEAMS.length}. Move one and both conferences re-derive.`}
           right={
             dirty.length > 0 ? (
               <button className="btn !py-1 !text-[11px]" onClick={() => dispatch({ type: 'resetCoefficients' })}>
@@ -176,7 +177,7 @@ export function ModelLab() {
               s: `Spearman rank correlation${dirty.length ? ` · default ${baselineRho.toFixed(3)}` : ''}`,
               tone: (rho >= baselineRho - 0.02 ? 'accent' : 'negative') as 'accent' | 'negative',
             },
-            { l: 'Conference spread', v: `${num(spread)} pts`, s: 'best to worst, neutral field' },
+            { l: 'Spread', v: `${num(spread)} pts`, s: `best to worst in ${lensLabel(state.lens)}, neutral field` },
             { l: 'SEC anchor', v: signed(MEASURED_ANCHOR.SEC * coeffs.anchorScale), s: 'measured, against an average FBS team' },
             { l: 'Big Ten anchor', v: signed(MEASURED_ANCHOR.B1G * coeffs.anchorScale), s: 'measured, against an average FBS team' },
             { l: 'Coefficients changed', v: String(dirty.length), s: dirty.length ? 'from the defaults' : 'running the defaults' },

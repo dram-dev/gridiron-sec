@@ -393,6 +393,8 @@ export interface Player {
 
 export interface NonConferenceOpponent {
   id: string;
+  /** Short label for schedules and axis ticks — never the raw source id. */
+  abbr: string;
   name: string;
   conference: string;
   /** Rating in the same points-above-average units as SEC teams. */

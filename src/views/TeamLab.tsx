@@ -8,6 +8,7 @@ import {
 import { COACH_BY_TEAM } from '../data/coaches';
 import { ROSTERS } from '../data/players';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
+import { CONFERENCE_BY_ID } from '../data/conferences';
 import type { TeamId } from '../data/types';
 import { resolveRated } from '../engine/game';
 import { rosterValue } from '../engine/players';
@@ -39,6 +40,9 @@ export function TeamLab() {
   const team = TEAM_BY_ID[teamId];
   const rating = ratings[teamId];
   const rank = ranked.find((r) => r.teamId === teamId)!;
+  const conference = CONFERENCE_BY_ID[TEAM_BY_ID[teamId].conference];
+  const confRank = ranked.filter((r) => TEAM_BY_ID[r.teamId].conference === conference.id)
+    .findIndex((r) => r.teamId === teamId) + 1;
   const outlook = season.teams[teamId];
   const baseOutlook = baselineSeason.teams[teamId];
   const coach = COACH_BY_TEAM[teamId];
@@ -47,14 +51,25 @@ export function TeamLab() {
   const schedule = useMemo(() => teamSchedule(teamId), [teamId]);
   const value = useMemo(() => rosterValue(teamId), [teamId]);
 
+  /*
+   * Compare a team against its own conference, not the pool.
+   *
+   * "Above the median" has to mean above the teams this one actually plays.
+   * Measuring an SEC team against a thirty-four-team median would quietly
+   * flatter or punish it for the company it keeps rather than how it played.
+   */
+  const peers = useMemo(
+    () => TEAMS.filter((t) => t.conference === team.conference),
+    [team.conference],
+  );
   const medians = useMemo(() => {
     const out: Record<string, number> = {};
     for (const row of EFFICIENCY_ROWS) {
-      const vals = TEAMS.map((t) => row.get(t.efficiency)).sort((a, b) => a - b);
+      const vals = peers.map((t) => row.get(t.efficiency)).sort((a, b) => a - b);
       out[row.key] = vals[Math.floor(vals.length / 2)];
     }
     return out;
-  }, []);
+  }, [peers]);
 
   const winBins = outlook.winDistribution
     .map((p, i) => ({ x: i, p }))
@@ -104,7 +119,7 @@ export function TeamLab() {
             <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px]" style={{ color: 'var(--text-low)' }}>
               <span>{team.venue.name} · {team.venue.capacity.toLocaleString()}</span>
               <span>Home field worth {num(team.venue.hfa)} pts</span>
-              <span>2025: {team.record2025.wins}–{team.record2025.losses} ({team.record2025.confWins}–{team.record2025.confLosses} SEC)</span>
+              <span>2025: {team.record2025.wins}–{team.record2025.losses} ({team.record2025.confWins}–{team.record2025.confLosses} {conference.short})</span>
               {team.apPreseason && <span>AP preseason #{team.apPreseason}</span>}
               {team.spPlusRank && <span>SP+ #{team.spPlusRank}</span>}
             </div>
@@ -128,9 +143,9 @@ export function TeamLab() {
         <Divider />
         <div className="grid gap-px" style={{ background: 'var(--line-faint)', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
           {[
-            { label: 'Team rating', value: <AnimatedNumber value={rating.total} digits={1} />, sub: `#${rank.rank} in the SEC`, delta: rating.total - baselineRatings[teamId].total, tone: 'accent' as const },
+            { label: 'Team rating', value: <AnimatedNumber value={rating.total} digits={1} />, sub: `#${rank.rank} of ${TEAMS.length} · #${confRank} in the ${conference.name}`, delta: rating.total - baselineRatings[teamId].total, tone: 'accent' as const },
             { label: 'Projected record', value: `${outlook.meanWins.toFixed(1)}–${(12 - outlook.meanWins).toFixed(1)}`, sub: `${outlook.meanConfWins.toFixed(1)}–${(9 - outlook.meanConfWins).toFixed(1)} in conference`, delta: outlook.meanWins - baseOutlook.meanWins },
-            { label: 'SEC title', value: pct(outlook.pChampion, 1), sub: `${pct(outlook.pTitleGame, 1)} reach Atlanta`, delta: undefined },
+            { label: `${conference.short} title`, value: pct(outlook.pChampion, 1), sub: `${pct(outlook.pTitleGame, 1)} reach ${conference.championship.city.split(',')[0]}`, delta: undefined },
             { label: 'Playoff bid', value: pct(outlook.pPlayoff), sub: `${pct(outlook.pTenWins)} win ten or more`, delta: undefined },
             { label: 'Schedule strength', value: num(outlook.strengthOfSchedule), sub: `${num(outlook.conferenceSos)} in conference`, delta: undefined },
             { label: 'Returning production', value: pct(team.returning.overall), sub: `${pct(team.returning.offense)} off · ${pct(team.returning.defense)} def`, delta: undefined },
@@ -307,14 +322,14 @@ export function TeamLab() {
         <Panel>
           <PanelHead
             title="Efficiency profile"
-            subtitle="2025 per-play performance against the conference median. Bars right of centre are better than a median SEC team, whichever direction the metric runs."
+            subtitle={`2025 per-play performance against the ${conference.name} median. Bars right of centre are better than a median ${conference.short} team, whichever direction the metric runs.`}
           />
           <Table>
             <thead>
               <tr>
                 <Th>Metric</Th>
                 <Th align="right" width={78}>{team.abbr}</Th>
-                <Th align="right" width={78}>SEC median</Th>
+                <Th align="right" width={78}>{conference.short} median</Th>
                 <Th width={140}>vs median</Th>
               </tr>
             </thead>
@@ -322,7 +337,7 @@ export function TeamLab() {
               {EFFICIENCY_ROWS.map((row) => {
                 const v = row.get(team.efficiency);
                 const med = medians[row.key];
-                const all = TEAMS.map((t) => row.get(t.efficiency));
+                const all = peers.map((t) => row.get(t.efficiency));
                 const spread = Math.max(...all) - Math.min(...all) || 1;
                 const raw = (v - med) / spread;
                 const edge = row.better === 'high' ? raw : -raw;

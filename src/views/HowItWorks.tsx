@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { Waterfall } from '../components/charts';
-import { TEAM_BY_ID } from '../data/teams';
+import { TEAMS, TEAM_BY_ID } from '../data/teams';
 import { PLAYER_BY_ID } from '../data/players';
 import { ALL_GAMES } from '../data/schedule';
 import { GAME_SIGMA, LEAGUE_PPG, TEAM_SIGMA } from '../engine/constants';
@@ -98,7 +98,7 @@ export function HowItWorks() {
       {/* Masthead                                                         */}
       {/* ---------------------------------------------------------------- */}
       <header className="hiw-measure pt-4 pb-10">
-        <p className="hiw-eyebrow">Gridiron SEC</p>
+        <p className="hiw-eyebrow">Gridiron</p>
         <h1 className="hiw-display mt-3 text-[46px] leading-[0.95] tracking-[-0.01em] sm:text-[62px]" style={{ color: 'var(--text-hi)' }}>
           How this works
         </h1>
@@ -174,13 +174,22 @@ export function HowItWorks() {
                 figure in this app was typed by a person. Run{' '}
                 <code className="hiw-code">npm run etl</code> and the entire data layer regenerates.
               </p>
-              <p className="hiw-sub">A raw average would lie about this conference</p>
+              <p className="hiw-sub">A raw average would lie about both of these conferences</p>
               <p>
-                Sixteen teams that mostly play each other post depressed offensive numbers and
-                flattering defensive ones, because the schedule is the hardest in the sport.
-                Comparing a raw SEC average against a raw Sun Belt average compares schedules, not
-                teams — which is precisely the mistake a conference-specific app is most likely to
-                make.
+                Teams that mostly play each other post depressed offensive numbers and flattering
+                defensive ones, because the schedule is among the hardest in the sport. Comparing a
+                raw SEC average against a raw Sun Belt average compares schedules, not teams — and
+                comparing a raw SEC average against a raw Big Ten one has the same problem in
+                miniature, which is exactly the question this app now has to answer.
+              </p>
+              <p>
+                There is a second version of the same trap, and it took a while to see. Every FCS
+                opponent used to be fitted as its own team, on the one or two games it played, so
+                the ridge term pulled each of them toward the average FBS team — quietly scoring a
+                September cupcake as though it had been a real opponent, and rewarding whichever
+                conference schedules more of them. Pooling every FCS side into a single opponent
+                fixes it: one effect measured across a hundred games, which lands at{' '}
+                <Num>28</Num> points below an average FBS team, roughly where it should.
               </p>
               <p>
                 So each metric is fit across every FBS game in the season as a sum of two effects:
@@ -295,7 +304,8 @@ export function HowItWorks() {
                 team carries a rating constant. Each of the seven components is computed from that
                 team's observations — last season's per-play efficiency, the value of the roster on
                 hand, returning production, recruiting talent, the portal cycle, the coaching record
-                — by <Num>twelve</Num> coefficients applied identically to all sixteen teams.
+                — by <Num>twelve</Num> coefficients applied identically to all{' '}
+                <Num>{TEAMS.length}</Num> teams, in both conferences.
               </p>
               <p>
                 A coefficient is a rate, not a verdict: points per standard deviation of an
@@ -316,7 +326,7 @@ export function HowItWorks() {
                 Building from inputs makes an external check possible. The published SP+ preseason
                 ratings are produced by an entirely independent method, and nothing here is fitted
                 to them. The two conference orderings correlate at{' '}
-                <Num>{spearman.toFixed(3)}</Num> across the thirteen SEC teams SP+ ranks.
+                <Num>{spearman.toFixed(3)}</Num> across the SEC teams SP+ ranks.
               </p>
               <p>
                 That is not a back-test — no result is being scored, and{' '}
@@ -452,8 +462,11 @@ export function HowItWorks() {
             <Prose>
               <p>
                 Everything the app says about a season falls out of those runs: projected records,
-                the conference table, who reaches Atlanta. The standings order by conference winning
-                percentage, with ties broken head-to-head, then by overall record, then by rating.
+                the conference tables, who reaches each championship game. The standings order by
+                conference winning percentage, with ties broken head-to-head, then by overall
+                record, then by rating — and they are computed inside each conference separately,
+                because finishing first among sixteen and first among eighteen are two different
+                things that a single thirty-four-team table would silently merge.
               </p>
             </Prose>
           </Section>
@@ -551,7 +564,7 @@ export function HowItWorks() {
               <p>
                 Correcting it widened the conference from twenty-four points to thirty-three, and
                 that widening is the point rather than a side effect: the market has priced
-                SEC-against-SEC games as high as <Num>37</Num> points inside the first five weeks of
+                conference games as high as <Num>37</Num> points inside the first five weeks of
                 a season, and a scale that tops out at twenty-four cannot express its own biggest
                 mismatches. The old model under-called every one of them.
               </p>

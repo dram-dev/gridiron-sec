@@ -3,6 +3,7 @@ import { MEASURED_META } from '../data/measured';
 import { ALL_PLAYERS } from '../data/players';
 import { CONFERENCE_GAMES, NON_CONFERENCE_GAMES } from '../data/schedule';
 import { TEAMS } from '../data/teams';
+import { CONFERENCES } from '../data/conferences';
 import { COACHES } from '../data/coaches';
 import { DATASET } from '../data/meta';
 import {
@@ -52,7 +53,7 @@ export function Methodology() {
             {[
               ['Returning offence', 'Offence', 'Opponent-adjusted per-play efficiency of the returning offensive unit — EPA per play, success rate, explosiveness, finishing drives, line yards.'],
               ['Returning defence', 'Defence', 'The same, allowed. Havoc rate and line yards allowed carry most of the weight.'],
-              ['Quarterback', 'Offence', 'Value above a replacement-level SEC starter. The single largest one-player swing in the sport, so it gets its own component rather than hiding inside the offence.'],
+              ['Quarterback', 'Offence', 'Value above a replacement-level starter, measured as the rate of everyone behind the first choice at the position. The single largest one-player swing in the sport, so it gets its own component rather than hiding inside the offence.'],
               ['Coaching', '55% offence', 'Program trajectory, player development against recruiting talent, in-game management, and the first-year effect for a new staff.'],
               ['Continuity', 'Split evenly', 'Credit or debit for returning production. Auburn returns 11% of its offensive snaps; South Carolina returns ten starters. That gap is real and it is priced here.'],
               ['Portal & recruiting', 'Split evenly', 'Net value of the transfer cycle and the incoming class. LSU signed the consensus number-one portal class; that is worth 2.1 points.'],
@@ -138,8 +139,10 @@ export function Methodology() {
           </p>
           <p className="mt-2.5 text-[12.5px] leading-relaxed" style={{ color: 'var(--text)' }}>
             Conference standings are ordered by winning percentage, with ties broken by head-to-head record among the
-            tied group, then overall record, then rating — a faithful simplification of the SEC's published procedure.
-            The top two meet in Atlanta on 5 December.
+            tied group, then overall record, then rating — a faithful simplification of both conferences' published
+            procedures. Each conference ranks only its own members and stages its own championship game, so first
+            place is filled once inside the {CONFERENCES[0].teams.length} and once inside the{' '}
+            {CONFERENCES[1].teams.length}, never once across the {TEAMS.length}.
           </p>
           <div className="mt-4 rounded-[10px] px-4 py-3" style={{ background: 'var(--bg-panel-2)', border: '1px solid var(--line)' }}>
             <div className="flex items-center gap-2">
@@ -151,8 +154,8 @@ export function Methodology() {
               conference title and final rating — losses dominate, because that is how the committee behaves. It is
               anchored so a 12–1 conference champion is a near-lock, an 11–1 team at +20 sits around 94%, 10–3 at +18 is
               roughly a third, and 9–4 needs help. Across a simulated season it yields about
-              {' '}{TEAMS.reduce((s, t) => s + season.teams[t.id].pPlayoff, 0).toFixed(1)} SEC bids. Treat it as an
-              order-of-magnitude estimate, not a forecast.
+              {' '}{TEAMS.reduce((s, t) => s + season.teams[t.id].pPlayoff, 0).toFixed(1)} bids across both
+              conferences, of twelve places. Treat it as an order-of-magnitude estimate, not a forecast.
             </p>
           </div>
         </div>
@@ -228,8 +231,10 @@ export function Methodology() {
               player’s 2025 production are counted directly off{' '}
               {MEASURED_META.plays.toLocaleString()} plays of {MEASURED_META.priorSeason} play-by-play, across{' '}
               {MEASURED_META.games.toLocaleString()} games and {MEASURED_META.teams} teams. Quality metrics are
-              opponent-adjusted so an SEC schedule stops being counted as a weakness. Nothing in this tier was typed by
-              hand — <code>npm&nbsp;run&nbsp;etl</code> regenerates all of it.
+              opponent-adjusted so a hard schedule stops being counted as a weakness, and every FCS opponent is pooled
+              into one so beating a cupcake is not scored as beating an average FBS team. The 2026 schedule, the
+              Big Ten rosters and each conference's anchor against average FBS are counted here too. Nothing in this
+              tier was typed by hand — <code>npm&nbsp;run&nbsp;etl</code> regenerates all of it.
             </p>
           </div>
           <div className="rounded-[10px] p-3.5" style={{ background: 'var(--bg-panel-2)', border: '1px solid var(--line)' }}>
@@ -238,9 +243,9 @@ export function Methodology() {
               <span className="text-[12.5px] font-semibold" style={{ color: 'var(--text-hi)' }}>Verified</span>
             </div>
             <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--text)' }}>
-              Sourced from the public reporting listed below while this dataset was compiled: the 2026 schedule release
-              and all sixteen team schedules, the Preseason Coaches All-SEC teams, announced Week 1 starting
-              quarterbacks, reported portal additions, 2025 final standings, and the coaching carousel.
+              Sourced from the public reporting listed below while this dataset was compiled: the Preseason Coaches
+              All-SEC teams, announced Week 1 starting quarterbacks, reported portal additions, and the coaching
+              carousel. The schedule used to sit here and no longer does — it is measured now.
             </p>
           </div>
           <div className="rounded-[10px] p-3.5" style={{ background: 'var(--bg-panel-2)', border: '1px solid var(--line)' }}>
@@ -295,7 +300,7 @@ export function Methodology() {
           <ul className="space-y-3">
             {[
               ['It is a snapshot, not a feed.', 'The dataset was compiled on 5 September 2026 and does not update for results, injuries or depth-chart changes. The Scenario Studio exists so you can impose those yourself.'],
-              ['Roster coverage is curated, not exhaustive.', `${ALL_PLAYERS.length} players across sixteen teams — the contributors who move a projection, not every scholarship athlete. A deep bench injury will not show up because that player is not tracked.`],
+              ['Roster coverage is curated, not exhaustive.', `${ALL_PLAYERS.length} players across ${TEAMS.length} teams — the contributors who move a projection, not every scholarship athlete. A deep bench injury will not show up because that player is not tracked. The two conferences are built differently: the SEC rosters are curated two-deeps, the Big Ten ones are derived from the published roster file, so the SEC carries scouting the Big Ten does not and the Big Ten carries measurement the SEC cannot match.`],
               ['The player and coach layers are untested.', 'The back-test scores five seasons, but those layers only exist at the current vintage, so there is nothing to grade them against. Everything measurable — efficiency, continuity, recruiting — is weighted from results; the quarterback, coaching and portal terms are still judgement, and are deliberately small.'],
               ['Grades and PAR are estimates.', 'Team efficiency and player production are both counted off the 2025 play-by-play. The 2026 grade layered on top of them is an analyst judgement, and it is what drives roster strength, the quarterback term and every PAR figure.'],
               ['Offensive linemen cannot be measured individually.', 'Play-by-play never names them, so no lineman carries a measured production line. A line shows up collectively, in its team\u2019s line yards and sack rate allowed.'],

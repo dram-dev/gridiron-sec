@@ -98,507 +98,591 @@ export const CHAMPIONSHIPS = {
 export const NON_CONFERENCE: NonConferenceOpponent[] = [
   {
     "id": "x87",
+    "abbr": "ND",
     "name": "Notre Dame",
     "conference": "FBS Independents",
-    "rating": 23.9
+    "rating": 23.1
   },
   {
     "id": "x254",
+    "abbr": "UTAH",
     "name": "Utah",
     "conference": "Big 12",
-    "rating": 19.1
+    "rating": 18.9
   },
   {
     "id": "x68",
+    "abbr": "BOIS",
     "name": "Boise State",
     "conference": "Pac-12",
-    "rating": 9
-  },
-  {
-    "id": "x249",
-    "name": "North Texas",
-    "conference": "American Athletic",
-    "rating": 8.3
+    "rating": 9.2
   },
   {
     "id": "x97",
+    "abbr": "LOUI",
     "name": "Louisville",
     "conference": "ACC",
     "rating": 7.7
   },
   {
+    "id": "x249",
+    "abbr": "UNT",
+    "name": "North Texas",
+    "conference": "American Athletic",
+    "rating": 7.7
+  },
+  {
     "id": "x52",
+    "abbr": "FS",
     "name": "Florida State",
     "conference": "ACC",
-    "rating": 7.4
+    "rating": 7.5
   },
   {
     "id": "x228",
+    "abbr": "CLEM",
     "name": "Clemson",
     "conference": "ACC",
     "rating": 6.6
   },
   {
     "id": "x150",
+    "abbr": "DUKE",
     "name": "Duke",
     "conference": "ACC",
     "rating": 5.7
   },
   {
     "id": "x2305",
+    "abbr": "KANS",
     "name": "Kansas",
     "conference": "Big 12",
-    "rating": 5.3
+    "rating": 5.2
   },
   {
     "id": "x41",
+    "abbr": "UCON",
     "name": "UConn",
     "conference": "FBS Independents",
-    "rating": 4.8
+    "rating": 4.7
   },
   {
     "id": "x21",
+    "abbr": "SDS",
     "name": "San Diego State",
     "conference": "Pac-12",
-    "rating": 3.7
+    "rating": 4.4
   },
   {
     "id": "x154",
+    "abbr": "WF",
     "name": "Wake Forest",
     "conference": "ACC",
-    "rating": 3.6
+    "rating": 3.8
   },
   {
     "id": "x2649",
+    "abbr": "TOL",
     "name": "Toledo",
     "conference": "Mid-American",
-    "rating": 3.4
+    "rating": 3.5
   },
   {
     "id": "x9",
+    "abbr": "AS",
     "name": "Arizona State",
     "conference": "Big 12",
-    "rating": 2.2
+    "rating": 2.3
   },
   {
     "id": "x59",
+    "abbr": "GT",
     "name": "Georgia Tech",
     "conference": "ACC",
     "rating": 2.1
   },
   {
     "id": "x265",
+    "abbr": "WS",
     "name": "Washington State",
     "conference": "Pac-12",
-    "rating": 1.8
+    "rating": 1.9
   },
   {
     "id": "x152",
+    "abbr": "NS",
     "name": "NC State",
     "conference": "ACC",
-    "rating": 1.7
+    "rating": 1.8
   },
   {
     "id": "x338",
+    "abbr": "KS",
     "name": "Kennesaw State",
     "conference": "Conference USA",
     "rating": 1.4
   },
   {
     "id": "x239",
+    "abbr": "BAY",
     "name": "Baylor",
     "conference": "Big 12",
-    "rating": 1.2
+    "rating": 1.1
   },
   {
     "id": "x167",
+    "abbr": "NM",
     "name": "New Mexico",
     "conference": "Mountain West",
+    "rating": 0.9
+  },
+  {
+    "id": "x151",
+    "abbr": "ECU",
+    "name": "East Carolina",
+    "conference": "American Athletic",
     "rating": 0.8
   },
   {
     "id": "x66",
+    "abbr": "IS",
     "name": "Iowa State",
     "conference": "Big 12",
-    "rating": 0.8
-  },
-  {
-    "id": "x151",
-    "name": "East Carolina",
-    "conference": "American Athletic",
-    "rating": 0.3
+    "rating": 0.6
   },
   {
     "id": "x326",
+    "abbr": "TXST",
     "name": "Texas State",
     "conference": "Pac-12",
-    "rating": -0.1
+    "rating": 0.2
   },
   {
     "id": "x2711",
+    "abbr": "WM",
     "name": "Western Michigan",
     "conference": "Mid-American",
-    "rating": -0.2
-  },
-  {
-    "id": "x98",
-    "name": "Western Kentucky",
-    "conference": "Conference USA",
-    "rating": -0.9
-  },
-  {
-    "id": "x25",
-    "name": "California",
-    "conference": "ACC",
-    "rating": -0.9
+    "rating": -0.4
   },
   {
     "id": "x2348",
+    "abbr": "LT",
     "name": "Louisiana Tech",
     "conference": "Sun Belt",
-    "rating": -0.9
+    "rating": -0.6
   },
   {
     "id": "x328",
+    "abbr": "US",
     "name": "Utah State",
     "conference": "Pac-12",
-    "rating": -1.1
+    "rating": -0.8
+  },
+  {
+    "id": "x98",
+    "abbr": "WK",
+    "name": "Western Kentucky",
+    "conference": "Conference USA",
+    "rating": -1.4
+  },
+  {
+    "id": "x25",
+    "abbr": "CALI",
+    "name": "California",
+    "conference": "ACC",
+    "rating": -1.7
   },
   {
     "id": "x103",
+    "abbr": "BC",
     "name": "Boston College",
     "conference": "ACC",
-    "rating": -1.9
+    "rating": -1.8
   },
   {
     "id": "x38",
+    "abbr": "COLO",
     "name": "Colorado",
     "conference": "Big 12",
-    "rating": -2.3
+    "rating": -2.2
   },
   {
     "id": "x276",
+    "abbr": "MRSH",
     "name": "Marshall",
     "conference": "Sun Belt",
     "rating": -2.3
   },
   {
     "id": "x259",
+    "abbr": "VT",
     "name": "Virginia Tech",
     "conference": "ACC",
     "rating": -3.6
   },
   {
-    "id": "x278",
-    "name": "Fresno State",
-    "conference": "Pac-12",
-    "rating": -4.4
-  },
-  {
     "id": "x2653",
+    "abbr": "TROY",
     "name": "Troy",
     "conference": "Sun Belt",
     "rating": -4.7
   },
   {
-    "id": "x2636",
-    "name": "UTSA",
-    "conference": "American Athletic",
+    "id": "x278",
+    "abbr": "FRES",
+    "name": "Fresno State",
+    "conference": "Pac-12",
     "rating": -5.1
   },
   {
-    "id": "x2572",
-    "name": "Southern Miss",
-    "conference": "Sun Belt",
-    "rating": -5.2
-  },
-  {
-    "id": "x2623",
-    "name": "Missouri State",
-    "conference": "Conference USA",
-    "rating": -6.5
-  },
-  {
-    "id": "x23",
-    "name": "San José State",
-    "conference": "Mountain West",
-    "rating": -7
-  },
-  {
-    "id": "x195",
-    "name": "Ohio",
-    "conference": "Mid-American",
-    "rating": -7.1
+    "id": "x2636",
+    "abbr": "UTSA",
+    "name": "UTSA",
+    "conference": "American Athletic",
+    "rating": -5.3
   },
   {
     "id": "x48",
+    "abbr": "DELA",
     "name": "Delaware",
     "conference": "Conference USA",
-    "rating": -8
+    "rating": -5.6
   },
   {
-    "id": "x6",
-    "name": "South Alabama",
+    "id": "x2572",
+    "abbr": "SM",
+    "name": "Southern Miss",
     "conference": "Sun Belt",
-    "rating": -8
+    "rating": -6.1
+  },
+  {
+    "id": "x2623",
+    "abbr": "MS",
+    "name": "Missouri State",
+    "conference": "Conference USA",
+    "rating": -6.7
+  },
+  {
+    "id": "x23",
+    "abbr": "SJSU",
+    "name": "San José State",
+    "conference": "Mountain West",
+    "rating": -6.7
+  },
+  {
+    "id": "x195",
+    "abbr": "OHIO",
+    "name": "Ohio",
+    "conference": "Mid-American",
+    "rating": -7.2
   },
   {
     "id": "x309",
+    "abbr": "LOUI",
     "name": "Louisiana",
     "conference": "Sun Belt",
     "rating": -8.2
   },
   {
-    "id": "x2226",
-    "name": "Florida Atlantic",
-    "conference": "American Athletic",
-    "rating": -9.4
+    "id": "x6",
+    "abbr": "SA",
+    "name": "South Alabama",
+    "conference": "Sun Belt",
+    "rating": -8.4
   },
   {
-    "id": "x2440",
-    "name": "Nevada",
-    "conference": "Mountain West",
-    "rating": -9.8
+    "id": "x2226",
+    "abbr": "FA",
+    "name": "Florida Atlantic",
+    "conference": "American Athletic",
+    "rating": -9.5
   },
   {
     "id": "x218",
+    "abbr": "TEMP",
     "name": "Temple",
     "conference": "American Athletic",
-    "rating": -10
+    "rating": -10.1
+  },
+  {
+    "id": "x2440",
+    "abbr": "NEVA",
+    "name": "Nevada",
+    "conference": "Mountain West",
+    "rating": -10.1
   },
   {
     "id": "x5",
+    "abbr": "UAB",
     "name": "UAB",
     "conference": "American Athletic",
-    "rating": -11.8
+    "rating": -12
   },
   {
     "id": "x202",
+    "abbr": "TULS",
     "name": "Tulsa",
     "conference": "American Athletic",
-    "rating": -11.9
+    "rating": -12.1
+  },
+  {
+    "id": "x2199",
+    "abbr": "EM",
+    "name": "Eastern Michigan",
+    "conference": "Mid-American",
+    "rating": -12.1
   },
   {
     "id": "x197",
+    "abbr": "OS",
     "name": "Oklahoma State",
     "conference": "Big 12",
     "rating": -12.2
   },
   {
-    "id": "x2199",
-    "name": "Eastern Michigan",
-    "conference": "Mid-American",
-    "rating": -12.3
-  },
-  {
     "id": "x2459",
+    "abbr": "NI",
     "name": "Northern Illinois",
     "conference": "Mountain West",
     "rating": -13.6
   },
   {
     "id": "x2006",
+    "abbr": "AKRO",
     "name": "Akron",
     "conference": "Mid-American",
-    "rating": -14.7
+    "rating": -14.4
   },
   {
     "id": "x2084",
+    "abbr": "BUFF",
     "name": "Buffalo",
     "conference": "Mid-American",
-    "rating": -14.8
+    "rating": -14.9
   },
   {
     "id": "x2433",
+    "abbr": "UM",
     "name": "UL Monroe",
     "conference": "Sun Belt",
-    "rating": -15.8
+    "rating": -16.1
   },
   {
     "id": "x2638",
+    "abbr": "UTEP",
     "name": "UTEP",
     "conference": "Mountain West",
-    "rating": -16.5
-  },
-  {
-    "id": "x113",
-    "name": "Massachusetts",
-    "conference": "Mid-American",
-    "rating": -17.7
+    "rating": -17.2
   },
   {
     "id": "x189",
+    "abbr": "BG",
     "name": "Bowling Green",
+    "conference": "Mid-American",
+    "rating": -18.9
+  },
+  {
+    "id": "x113",
+    "abbr": "MASS",
+    "name": "Massachusetts",
+    "conference": "Mid-American",
+    "rating": -19.1
+  },
+  {
+    "id": "x2050",
+    "abbr": "BALL",
+    "name": "Ball State",
     "conference": "Mid-American",
     "rating": -19.4
   },
   {
-    "id": "x2050",
-    "name": "Ball State",
-    "conference": "Mid-American",
-    "rating": -19.5
-  },
-  {
     "id": "x2429",
+    "abbr": "CHAR",
     "name": "Charlotte",
     "conference": "American Athletic",
-    "rating": -20.4
+    "rating": -20
   },
   {
     "id": "x2309",
+    "abbr": "KENT",
     "name": "Kent State",
     "conference": "Mid-American",
-    "rating": -24.3
+    "rating": -22.8
   },
   {
     "id": "x2453",
+    "abbr": "NA",
     "name": "North Alabama",
     "conference": "UAC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2634",
+    "abbr": "TNST",
     "name": "Tennessee State",
     "conference": "OVC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2754",
+    "abbr": "YSU",
     "name": "Youngstown State",
     "conference": "MVFC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2029",
+    "abbr": "UAPB",
     "name": "Arkansas-Pine Bluff",
     "conference": "SWAC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x231",
+    "abbr": "FUR",
     "name": "Furman",
     "conference": "Southern",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2046",
+    "abbr": "AP",
     "name": "Austin Peay",
     "conference": "UAC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2097",
+    "abbr": "CAMP",
     "name": "Campbell",
     "conference": "Coastal Athletic",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x119",
+    "abbr": "TOWS",
     "name": "Towson",
     "conference": "Coastal Athletic",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2377",
+    "abbr": "MCNE",
     "name": "McNeese",
     "conference": "Southland",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2643",
+    "abbr": "TC",
     "name": "The Citadel",
     "conference": "Southern",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x236",
+    "abbr": "CHAT",
     "name": "Chattanooga",
     "conference": "Southern",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2535",
+    "abbr": "SAMF",
     "name": "Samford",
     "conference": "Southern",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2747",
+    "abbr": "WOFF",
     "name": "Wofford",
     "conference": "Southern",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2635",
+    "abbr": "TT",
     "name": "Tennessee Tech",
     "conference": "Southern",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2197",
+    "abbr": "EIU",
     "name": "Eastern Illinois",
     "conference": "OVC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2261",
+    "abbr": "HAMP",
     "name": "Hampton",
     "conference": "Coastal Athletic",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2571",
+    "abbr": "SDS",
     "name": "South Dakota State",
     "conference": "MVFC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x282",
+    "abbr": "INST",
     "name": "Indiana State",
     "conference": "MVFC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x47",
+    "abbr": "HOWA",
     "name": "Howard",
     "conference": "MEAC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2710",
+    "abbr": "WI",
     "name": "Western Illinois",
     "conference": "OVC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x79",
+    "abbr": "SI",
     "name": "Southern Illinois",
     "conference": "MVFC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x155",
+    "abbr": "ND",
     "name": "North Dakota",
     "conference": "MVFC",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2502",
+    "abbr": "PS",
     "name": "Portland State",
     "conference": "Big Sky",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x331",
+    "abbr": "EW",
     "name": "Eastern Washington",
     "conference": "Big Sky",
-    "rating": -28.3
+    "rating": -28.5
   },
   {
     "id": "x2460",
+    "abbr": "NI",
     "name": "Northern Iowa",
     "conference": "MVFC",
-    "rating": -28.3
+    "rating": -28.5
   }
 ];
 
