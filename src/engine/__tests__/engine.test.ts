@@ -223,11 +223,17 @@ describe('the derivation', () => {
     expect(mean).toBeCloseTo(DEFAULT_COEFFICIENTS.leagueAnchor, 6);
   });
 
-  it('spans a plausible power-conference range', () => {
+  it('spans the range the market actually prices this conference at', () => {
+    // Not a taste bound. Across 2023-25 the closing line on SEC-against-SEC
+    // games reached 37 points, and did so inside the first five weeks, when the
+    // market's information is closest to a preseason model's. Taking about
+    // three points of that as home field puts the neutral-field gap between the
+    // best and worst team in the conference near 34. A model far under that
+    // cannot price its own biggest mismatches; far over it is inventing them.
     const totals = TEAMS.map((t) => ratings[t.id].total).sort((a, b) => b - a);
     const spread = totals[0] - totals[totals.length - 1];
-    expect(spread).toBeGreaterThan(18);
-    expect(spread).toBeLessThan(34);
+    expect(spread).toBeGreaterThan(24);
+    expect(spread).toBeLessThan(40);
   });
 
   it('re-rates the whole league when a coefficient moves', () => {

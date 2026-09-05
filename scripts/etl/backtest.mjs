@@ -123,8 +123,8 @@ for (const year of [...SEASONS, 2026]) {
 // would split one signal across three collinear columns and the individual
 // coefficients would mean nothing. It is kept for the single-feature baseline
 // only, and excluded from anything fitted.
-const FEATURES = ['offEpa', 'defEpa', 'retOff', 'retDef', 'talent'];
-const ALL_FEATURES = [...FEATURES, 'netEpa'];
+const FEATURES = ['offEpa', 'defEpa', 'retOff', 'retDef', 'blueChip'];
+const ALL_FEATURES = [...FEATURES, 'netEpa', 'talent'];
 
 /** Standardise nationally, over the teams actually available that year. */
 function standardise(rows) {
@@ -166,6 +166,7 @@ function buildSeason(year) {
         retOff: v.retOff ?? null,
         retDef: v.retDef ?? null,
         talent: v.talent ?? null,
+        blueChip: v.blueChip ?? null,
       },
     });
   }
@@ -241,8 +242,22 @@ const APP = { priorWeight: 0.46, efficiencyScale: 3.75, continuityScale: 0.72, t
 function predictApp(r) {
   const units = APP.priorWeight * APP.efficiencyScale * (r.diff.offEpa + r.diff.defEpa);
   const continuity = APP.continuityScale * ((r.diff.retOff + r.diff.retDef) / 2);
-  const talent = APP.talentScale * r.diff.talent;
+  const talent = APP.talentScale * r.diff.blueChip;
   return units + continuity + talent + APP.hfa;
+}
+
+/**
+ * The recalibrated coefficients, in the same shape the app applies them — one
+ * shared unit scale, continuity on the mean of the two returning shares, talent
+ * on blue-chip ratio. Standardisation is national on both sides here, which is
+ * the change that lets a fitted weight transfer into the app unmodified.
+ */
+const TUNED = { unitScale: 2.95, continuityScale: 1.05, talentScale: 4.69, hfa: 3.2 };
+function predictTuned(r) {
+  return TUNED.unitScale * (r.diff.offEpa + r.diff.defEpa)
+    + TUNED.continuityScale * ((r.diff.retOff + r.diff.retDef) / 2)
+    + TUNED.talentScale * r.diff.blueChip
+    + TUNED.hfa;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -302,6 +317,7 @@ for (const [year, rows] of bySeason) {
   console.log(row('  home field only', score(rows, () => APP.hfa)));
   console.log(row('  prior-season net EPA only', score(rows, (r) => 6.5 * r.diff.netEpa + APP.hfa)));
   console.log(row("  the app's coefficients", score(rows, predictApp)));
+  console.log(row('  recalibrated coefficients', score(rows, predictTuned)));
 
   // Walk forward: fit only on seasons strictly before this one.
   const train = [...bySeason.entries()].filter(([y]) => y < year).flatMap(([, r]) => r);
@@ -324,6 +340,7 @@ if (pooled.length) {
   console.log(row('  market closing line', score(rows, (r) => r.spread)));
   console.log(row('  home field only', score(rows, () => APP.hfa)));
   console.log(row("  the app's coefficients", score(rows, predictApp)));
+  console.log(row('  recalibrated coefficients', score(rows, predictTuned)));
   const predByYear = new Map(all.map((a) => [a.year, a.model]));
   console.log(row('  fitted (walk-forward)', score(rows, (r) => predictFitted(predByYear.get(r.year), r, FEATURES))));
 
@@ -333,6 +350,7 @@ if (pooled.length) {
   console.log(`\nEARLY SEASON ONLY (weeks 1-4, ${early.length} games)`);
   console.log(row('  market closing line', score(early, (r) => r.spread)));
   console.log(row("  the app's coefficients", score(early, predictApp)));
+  console.log(row('  recalibrated coefficients', score(early, predictTuned)));
   console.log(row('  fitted (walk-forward)', score(early, (r) => predictFitted(predByYear.get(r.year), r, FEATURES))));
 
   console.log('\n' + '-'.repeat(92));
@@ -345,27 +363,39 @@ if (pooled.length) {
   // nationally. A coefficient cannot cross between the two without the ratio of
   // those spreads, so it is measured here rather than assumed.
   const SEC_IDS = new Set(['333','8','2','57','61','96','99','145','344','142','201','2579','2633','251','245','238']);
-  const last = SEASONS[SEASONS.length - 1];
-  const teamRows = [];
-  for (const [id, t] of season.get(last - 1).teams) {
-    if (t.games < 8) continue;
-    const v = vintage.get(last)?.get(id) ?? {};
-    teamRows.push({ id, raw: {
-      netEpa: t.offEpa - t.defEpa, offEpa: t.offEpa, defEpa: -t.defEpa,
-      retOff: v.retOff ?? null, retDef: v.retDef ?? null, talent: v.talent ?? null } });
-  }
   const sd = (xs) => {
     const v = xs.filter((x) => x != null && Number.isFinite(x));
+    if (v.length < 2) return NaN;
     const m = v.reduce((a, b) => a + b, 0) / v.length;
     return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length);
   };
-  console.log('\nSEC SPREAD AS A SHARE OF THE NATIONAL SPREAD, and the weight that implies');
-  console.log(`  ${'feature'.padEnd(10)} ${'nat SD'.padStart(8)} ${'SEC SD'.padStart(8)} ${'ratio'.padStart(6)} ${'pts / SEC SD'.padStart(13)}`);
+
+  // Averaged over every season, not one. A single season's ratio is noisy
+  // enough to invent an offence/defence asymmetry that the per-season weights
+  // above show is not there.
+  const ratios = Object.fromEntries(FEATURES.map((f) => [f, []]));
+  for (const y of SEASONS.slice(1)) {
+    const rowsY = [];
+    for (const [id, t] of season.get(y - 1).teams) {
+      if (t.games < 8) continue;
+      const v = vintage.get(y)?.get(id) ?? {};
+      rowsY.push({ id, raw: {
+        offEpa: t.offEpa, defEpa: -t.defEpa,
+        retOff: v.retOff ?? null, retDef: v.retDef ?? null, blueChip: v.blueChip ?? null } });
+    }
+    for (const f of FEATURES) {
+      const nat = sd(rowsY.map((r) => r.raw[f]));
+      const sec = sd(rowsY.filter((r) => SEC_IDS.has(r.id)).map((r) => r.raw[f]));
+      if (Number.isFinite(nat) && Number.isFinite(sec) && nat > 0) ratios[f].push(sec / nat);
+    }
+  }
+
+  console.log('\nSEC SPREAD AS A SHARE OF THE NATIONAL SPREAD, averaged over all seasons');
+  console.log(`  ${'feature'.padEnd(10)} ${'per-season ratios'.padEnd(30)} ${'mean'.padStart(6)} ${'pts / SEC SD'.padStart(13)}`);
   for (const f of FEATURES) {
-    const nat = sd(teamRows.map((r) => r.raw[f]));
-    const sec = sd(teamRows.filter((r) => SEC_IDS.has(r.id)).map((r) => r.raw[f]));
-    const ratio = sec / nat;
-    console.log(`  ${f.padEnd(10)} ${nat.toFixed(3).padStart(8)} ${sec.toFixed(3).padStart(8)} ` +
-      `${ratio.toFixed(2).padStart(6)} ${(full.weights[f] * ratio).toFixed(2).padStart(13)}`);
+    const rs = ratios[f];
+    const mean = rs.reduce((a, b) => a + b, 0) / rs.length;
+    console.log(`  ${f.padEnd(10)} ${rs.map((r) => r.toFixed(2)).join(' ').padEnd(30)} ` +
+      `${mean.toFixed(2).padStart(6)} ${(full.weights[f] * mean).toFixed(2).padStart(13)}`);
   }
 }

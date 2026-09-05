@@ -226,7 +226,7 @@ export function ModelLab() {
             <PanelHead
               title="Checked against two rankings it was never fitted to"
               subtitle="Conference rank from this model beside the published SP+ and AP preseason ranks. Agreement is evidence the structure is sound; each disagreement is a specific, inspectable claim."
-              right={<InfoDot text="This is not a backtest — nothing here is scored against results. It is an external consistency check between independent rankings." />}
+              right={<InfoDot text="Not the back-test — that scores five seasons of real results and lives in scripts/etl/backtest.mjs. This is an external consistency check between two independent preseason rankings." />}
             />
             <Table>
               <thead>

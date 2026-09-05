@@ -86,6 +86,32 @@ appears.
   and all seven rating components. Analyst estimates calibrated against the measured and verified
   layers. Model inputs, not measurements.
 
+### Does it work?
+
+`npm run etl:backtest` walks 2021-2025, builds each season's projection from the season before
+it, and grades it on games it never saw. Pooled over 2023-25, 2,345 games:
+
+| | R² | RMSE | picks winner | ATS |
+|---|---|---|---|---|
+| Market closing line | 0.430 | 15.25 | 72.7% | — |
+| **This model** | **0.261** | **17.36** | **67.2%** | **51.2%** |
+| Same inputs, weights fitted | 0.258 | 17.39 | 67.6% | — |
+| Home field only | −0.009 | 20.28 | 58.6% | — |
+
+Real, and well short of the market — which is expected, since a line for a week-eleven game has
+watched ten weeks the projection has not. Restricted to weeks 1-4, where that gap is smallest,
+the model reaches 0.402 against the market's 0.537. It wins 51.2% against the spread, i.e. it has
+no edge on a betting market and is not built to have one.
+
+The coefficients come from that back-test rather than from taste. An earlier hand-set version
+scored 0.144; almost all of the difference was one term. Recruiting talent is the strongest and
+steadiest predictor in the set — four to five points of margin per standard deviation in every
+season tested — and it was carried at 0.7, about a seventh of what the evidence supports.
+
+The quarterback, coaching and portal terms are not in any of these numbers. The player and coach
+layers only exist at the current vintage, so there is nothing to test them against; they remain
+the least defensible part of the model and account for about five points of the conference spread.
+
 ### The player layer
 
 140 of 191 rostered players are matched to the play-by-play, with their carries, targets,

@@ -296,12 +296,13 @@ export function Methodology() {
             {[
               ['It is a snapshot, not a feed.', 'The dataset was compiled on 5 September 2026 and does not update for results, injuries or depth-chart changes. The Scenario Studio exists so you can impose those yourself.'],
               ['Roster coverage is curated, not exhaustive.', `${ALL_PLAYERS.length} players across sixteen teams — the contributors who move a projection, not every scholarship athlete. A deep bench injury will not show up because that player is not tracked.`],
+              ['The player and coach layers are untested.', 'The back-test scores five seasons, but those layers only exist at the current vintage, so there is nothing to grade them against. Everything measurable — efficiency, continuity, recruiting — is weighted from results; the quarterback, coaching and portal terms are still judgement, and are deliberately small.'],
               ['Grades and PAR are estimates.', 'Team efficiency and player production are both counted off the 2025 play-by-play. The 2026 grade layered on top of them is an analyst judgement, and it is what drives roster strength, the quarterback term and every PAR figure.'],
               ['Offensive linemen cannot be measured individually.', 'Play-by-play never names them, so no lineman carries a measured production line. A line shows up collectively, in its team\u2019s line yards and sack rate allowed.'],
               ['The error bars are wide, and they should be.', 'A single-game σ of 15.8 points means a 10-point favourite loses about 26% of the time. Any single projection is a distribution, and the interface shows the distribution wherever it can.'],
               ['Coaching effects are the softest layer.', 'Tendencies travel between jobs far better than results do, but a first-year head coach with no head-coaching record — Kentucky’s, in this dataset — is genuinely close to unforecastable. That team carries the widest interval in the league by design.'],
               ['The playoff number is a heuristic.', 'Everything else derives from the ratings. The committee does not, so that one figure is an explicit approximation and is labelled as one wherever it appears.'],
-              ['This is not betting advice.', 'The model is built to explain and to stress-test assumptions. It has no information the market does not have, and it is not calibrated against closing lines.'],
+              ['This is not betting advice.', 'Back-tested against the closing line over 2,345 games it wins 51.2% against the spread — a coin flip. It is built to explain and to stress-test assumptions, and it has no edge on a market.'],
             ].map(([t, b]) => (
               <li key={t} className="flex gap-3">
                 <span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: 'var(--viz-neg)' }} />

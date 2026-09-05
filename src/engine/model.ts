@@ -22,8 +22,9 @@ import type { Coach, Player, RatingComponents, Team, TeamId } from '../data/type
  *
  * What is still an input rather than a measurement: the prior-season
  * efficiency profiles and the player grades. Those are analyst estimates, and
- * they are flagged as such wherever they surface. The structure around them is
- * real; the observations feeding it are the weakest link in the system.
+ * they are flagged as such wherever they surface. The observations are measured
+ * off the play-by-play and the weights are taken from a back-test; what is left
+ * unvalidated is the player and coach layer sitting on top of them.
  * ========================================================================== */
 
 export interface ModelCoefficients {
@@ -60,25 +61,47 @@ export interface ModelCoefficients {
 }
 
 /**
- * Calibrated so the conference spans roughly 25 points top to bottom, which is
- * what separates the best and worst power-conference teams in practice. The
- * un-scaled derivation spreads about 42 points, which would make the league
- * leader the best team in the country by a distance and the bottom side worse
- * than any power-conference roster actually is.
+ * Weights for the terms a back-test can reach, taken from it rather than chosen.
  *
- * Scaling the standardised terms by a common factor is close to order-
- * preserving, but not exactly: special teams enters in raw points and does not
- * scale with them, so a common multiplier can still flip teams separated by
- * less than the special-teams spread. In practice that means genuine ties only
- * — Oklahoma and Texas A&M sit within a tenth of a point of each other — and
- * the rank correlation across a 1.7x rescale stays above 0.99.
+ * scripts/etl/backtest.mjs walks 2021-2025, builds each season's projection
+ * from the season before it and scores it on games it never saw. Fitting the
+ * observable inputs against real margins says, in points per standard deviation
+ * of a conference-standardised observation:
+ *
+ *     unit efficiency   2.5 - 2.9      returning production   ~1.05
+ *     recruiting talent ~5.0           home field             3.2
+ *
+ * Measured against that, the efficiency and home-field weights this model
+ * shipped with were already about right. Talent was not: it carried 0.71 where
+ * the evidence says 5.0, and the recruiting composite turns out to be the
+ * single strongest and most stable predictor in the set — worth 4.7 to 5.4
+ * points per standard deviation in every season tested. Correcting it roughly
+ * doubles out-of-sample accuracy, from R² 0.14 to 0.26 on 2,345 games.
+ *
+ * The conference now spans about 34 points rather than 24, and that widening is
+ * the point rather than a side effect. The market has priced SEC-against-SEC
+ * games as high as 37 points inside the first five weeks of a season, which the
+ * old compressed scale could never have produced; it under-called every large
+ * mismatch, which is most of what the low R² was measuring.
+ *
+ * `priorWeight` moved with it, from 0.46 to 0.75. Measured efficiency and
+ * analyst roster strength correlate at 0.78 on defence and at 0.04 on offence —
+ * that is, the offensive roster grades carry no relationship at all to how good
+ * an offence actually was. Weighting an estimate that uninformative equally
+ * with a measurement was diluting the one input known to predict.
+ *
+ * The remaining coefficients — the quarterback term, the coaching index, the
+ * portal adjustment — have no historical counterpart to fit against, since the
+ * player and coach layers only exist at the current vintage. They stay as
+ * analyst judgements, and they are deliberately small: together they account
+ * for about five points of the conference's spread.
  */
 export const DEFAULT_COEFFICIENTS: ModelCoefficients = {
-  priorWeight: 0.46,
-  efficiencyScale: 3.75,
-  rosterScale: 3.45,
-  continuityScale: 0.72,
-  talentScale: 0.6,
+  priorWeight: 0.75,
+  efficiencyScale: 3.3,
+  rosterScale: 3.0,
+  continuityScale: 1.0,
+  talentScale: 4.5,
   portalWeight: 0.62,
   qbScale: 0.096,
   qbReplacementGrade: 70,
@@ -290,10 +313,10 @@ export interface AgreementRow {
 /**
  * How the derived ratings line up against two independent published rankings.
  *
- * This is not a backtest — nothing here is scored against results — but it is
- * a genuine external check. The model is built from inputs, not fitted to SP+,
- * so broad agreement is evidence the structure is sane and each disagreement
- * is a specific, inspectable claim.
+ * This is not the back-test — that lives in scripts/etl/backtest.mjs and scores
+ * five seasons of real results. This is a cheaper, different check: the model is
+ * built from inputs and never fitted to SP+, so broad agreement is evidence the
+ * structure is sane, and each disagreement is a specific, inspectable claim.
  */
 export function externalAgreement(
   derived: Record<TeamId, Derived> = DERIVED,

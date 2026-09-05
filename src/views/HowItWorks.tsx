@@ -31,13 +31,14 @@ const SECTIONS = [
   { id: 'games', part: 'one', n: '3', title: 'From two ratings to a game' },
   { id: 'seasons', part: 'one', n: '4', title: 'From games to a season' },
   { id: 'players', part: 'one', n: '5', title: 'What a player is worth' },
-  { id: 'limits', part: 'one', n: '6', title: 'What it will not tell you' },
-  { id: 'brief', part: 'two', n: '7', title: 'Two jobs, one product' },
-  { id: 'crimson', part: 'two', n: '8', title: 'Why charts avoid team colours' },
-  { id: 'ramps', part: 'two', n: '9', title: 'Testing instead of eyeballing' },
-  { id: 'marks', part: 'two', n: '10', title: 'One chart spec, everywhere' },
-  { id: 'type', part: 'two', n: '11', title: 'Type, numbers and themes' },
-  { id: 'next', part: 'two', n: '12', title: 'Where the model is weakest' },
+  { id: 'proof', part: 'one', n: '6', title: 'Whether any of it works' },
+  { id: 'limits', part: 'one', n: '7', title: 'What it will not tell you' },
+  { id: 'brief', part: 'two', n: '8', title: 'Two jobs, one product' },
+  { id: 'crimson', part: 'two', n: '9', title: 'Why charts avoid team colours' },
+  { id: 'ramps', part: 'two', n: '10', title: 'Testing instead of eyeballing' },
+  { id: 'marks', part: 'two', n: '11', title: 'One chart spec, everywhere' },
+  { id: 'type', part: 'two', n: '12', title: 'Type, numbers and themes' },
+  { id: 'next', part: 'two', n: '13', title: 'Where the model is weakest' },
 ];
 
 export function HowItWorks() {
@@ -85,6 +86,7 @@ export function HowItWorks() {
   const sdModel = sd(outlook.regularWinDistribution);
   const spearman = useMemo(() => spearmanVsSpPlus(externalAgreement()), []);
   const totalPlayers = ALL_PLAYERS.length;
+  const share = (v: number) => `${(v * 100).toFixed(1)}%`;
   const measuredPlayers = useMemo(
     () => ALL_PLAYERS.filter((p) => MEASURED_PLAYERS[p.id]).length,
     [],
@@ -317,8 +319,9 @@ export function HowItWorks() {
                 <Num>{spearman.toFixed(3)}</Num> across the thirteen SEC teams SP+ ranks.
               </p>
               <p>
-                That is not a backtest — no result is being scored — and it does not make the model
-                right. What it rules out is the model being arbitrary: a derivation built from
+                That is not a back-test — no result is being scored, and{' '}
+                <a className="hiw-link" href="#proof">section 6</a> is where results are — but it
+                does not make the model right either. What it rules out is the model being arbitrary: a derivation built from
                 these observations lands, unprompted, close to where a serious independent system
                 lands. Where the two disagree, the Model Lab names the team and the component
                 responsible.
@@ -498,8 +501,77 @@ export function HowItWorks() {
             </Figure>
           </Section>
 
-          {/* ---- 6 ---- */}
-          <Section id="limits" n="6" title="What it will not tell you">
+                    {/* ---- 6 ---- */}
+          <Section id="proof" n="6" title="Whether any of it works">
+            <Prose>
+              <p>
+                Everything above describes how the projection is built. None of it is evidence that
+                it is any good. So: five seasons, every projection built from the season before it
+                and graded on games it had never seen, with the closing line alongside as the
+                benchmark. Pooled over 2023 to 2025, {BACKTEST.games.toLocaleString()} games.
+              </p>
+            </Prose>
+
+            <Figure caption="Share of variance in final margin explained, out of sample. The fitted row is a model given the same inputs and allowed to choose its own weights using only seasons already played — it is the ceiling for this class of projection, and how close the model sits to it is the real test.">
+              <BacktestBars rows={BACKTEST.pooled} />
+            </Figure>
+
+            <Prose>
+              <p>
+                Read it honestly. The projection is real — it explains{' '}
+                <Num>{share(BACKTEST.model)}</Num> of the variance in game margin where knowing
+                nothing but home field explains none, and it picks the winner{' '}
+                <Num>{share(BACKTEST.winner)}</Num> of the time. It is also well short of the market,
+                and it wins against the spread{' '}
+                <Num>{share(BACKTEST.ats)}</Num> of the time, which is a coin flip. That last number
+                is the honest one: this has no edge on a betting line and is not built to have one.
+              </p>
+              <p>
+                The market comparison is unfair to a preseason model by construction — a line for a
+                week-eleven game has watched ten weeks of injuries, weather and form. Restricting
+                to the first four weeks, where the gap in information is smallest, the model reaches{' '}
+                <Num>{share(BACKTEST.early)}</Num> against the market's{' '}
+                <Num>{share(BACKTEST.earlyMarket)}</Num>.
+              </p>
+              <p className="hiw-sub">What the test changed</p>
+              <p>
+                It was not a formality. The first version of these coefficients was hand-set — chosen
+                to make the conference span about twenty-four points, which looked right and was
+                never checked. Scored properly it managed{' '}
+                <Num>{share(BACKTEST.before)}</Num>, against the{' '}
+                <Num>{share(BACKTEST.model)}</Num> above.
+              </p>
+              <p>
+                Almost all of that gap was one term. Recruiting talent is the strongest and steadiest
+                predictor in the whole set — worth four to five points of margin per standard
+                deviation in every season tested — and the model was carrying it at{' '}
+                <Num>0.7</Num>, about a seventh of what the evidence supports. Efficiency, continuity
+                and home field were already close to right.
+              </p>
+              <p>
+                Correcting it widened the conference from twenty-four points to thirty-three, and
+                that widening is the point rather than a side effect: the market has priced
+                SEC-against-SEC games as high as <Num>37</Num> points inside the first five weeks of
+                a season, and a scale that tops out at twenty-four cannot express its own biggest
+                mismatches. The old model under-called every one of them.
+              </p>
+              <p>
+                One more thing fell out of it. Measured efficiency and the analyst roster grades
+                agree on defence, correlating at <Num>0.78</Num>. On offence they correlate at{' '}
+                <Num>0.04</Num> — the offensive grades carry no relationship to how good an offence
+                actually was. The blend now leans three-to-one on the measurement.
+              </p>
+              <p>
+                Run it yourself with <code className="hiw-code">npm run etl:backtest</code>. The
+                quarterback, coaching and portal terms are not in any of these numbers: the player
+                and coach layers only exist at the current vintage, so there is nothing to test them
+                against, and they stay the least defensible part of the model.
+              </p>
+            </Prose>
+          </Section>
+
+{/* ---- 7 ---- */}
+          <Section id="limits" n="7" title="What it will not tell you">
             <Prose>
               <p>
                 A forecast without its limits is just a number. These are the real ones.
@@ -516,8 +588,8 @@ export function HowItWorks() {
           {/* ============================================================ */}
           <PartRule label="Part two" title="The design" />
 
-          {/* ---- 7 ---- */}
-          <Section id="brief" n="7" title="Two jobs, one product">
+          {/* ---- 8 ---- */}
+          <Section id="brief" n="8" title="Two jobs, one product">
             <Prose>
               <p>
                 Six of the seven views are a tool. They are scanned, filtered, sorted and compared,
@@ -538,8 +610,8 @@ export function HowItWorks() {
             </Prose>
           </Section>
 
-          {/* ---- 8 ---- */}
-          <Section id="crimson" n="8" title="Why charts avoid team colours">
+          {/* ---- 9 ---- */}
+          <Section id="crimson" n="9" title="Why charts avoid team colours">
             <Prose>
               <p>
                 Colouring each side of a chart in its own team colour is the obvious move, and in
@@ -587,8 +659,8 @@ export function HowItWorks() {
             </Prose>
           </Section>
 
-          {/* ---- 9 ---- */}
-          <Section id="ramps" n="9" title="Testing instead of eyeballing">
+          {/* ---- 10 ---- */}
+          <Section id="ramps" n="10" title="Testing instead of eyeballing">
             <Prose>
               <p>
                 Colour separation is measurable, so it is measured rather than judged by eye. Every
@@ -630,8 +702,8 @@ export function HowItWorks() {
             </Figure>
           </Section>
 
-          {/* ---- 10 ---- */}
-          <Section id="marks" n="10" title="One chart spec, everywhere">
+          {/* ---- 11 ---- */}
+          <Section id="marks" n="11" title="One chart spec, everywhere">
             <Prose>
               <p>
                 Every chart in the app follows the same rules, so a reader learns them once and then
@@ -645,8 +717,8 @@ export function HowItWorks() {
             </Prose>
           </Section>
 
-          {/* ---- 11 ---- */}
-          <Section id="type" n="11" title="Type, numbers and themes">
+          {/* ---- 12 ---- */}
+          <Section id="type" n="12" title="Type, numbers and themes">
             <Prose>
               <p>
                 The interface runs on the system font stack. It loads with no network round trip and
@@ -671,8 +743,8 @@ export function HowItWorks() {
             </Figure>
           </Section>
 
-          {/* ---- 12 ---- */}
-          <Section id="next" n="12" title="Where the model is weakest">
+          {/* ---- 13 ---- */}
+          <Section id="next" n="13" title="Where the model is weakest">
             <Prose>
               <p>
                 Four places where the model is thinner than it looks, in rough order of how much
@@ -842,8 +914,45 @@ const LIMITS: [string, string][] = [
   ['Grades and PAR are still estimates', 'Team efficiency and player production are both counted off the play-by-play. The 2026 grade layered on top of them is a judgement, and it is what the model actually consumes.'],
   ['The playoff number is a heuristic', 'Everything else derives from the ratings. The selection committee does not, so that one figure is an explicit approximation.'],
   ['Coaching is the softest layer', 'Tendencies travel between jobs better than results do — but a first-time head coach with no record is close to unforecastable, and carries the widest interval in the league by design.'],
-  ['This is not betting advice', 'The model has no information the market does not, and it is not calibrated against closing lines.'],
+  ['This is not betting advice', 'Back-tested against the closing line it wins 51.2% against the spread, which is a coin flip. It has no edge on a market and is not built to have one.'],
 ];
+
+/** Headline results from scripts/etl/backtest.mjs. */
+const BACKTEST = {
+  games: 2345,
+  model: 0.261, before: 0.144, winner: 0.672, ats: 0.512,
+  early: 0.402, earlyMarket: 0.537,
+  pooled: [
+    { label: 'Market closing line', value: 0.430, tone: 'ref' as const },
+    { label: 'This model', value: 0.261, tone: 'good' as const },
+    { label: 'Same inputs, weights fitted', value: 0.258, tone: 'ref' as const },
+    { label: 'Before the back-test', value: 0.144, tone: 'weak' as const },
+    { label: 'Home field only', value: 0.0, tone: 'weak' as const },
+  ],
+};
+
+function BacktestBars({ rows }: { rows: typeof BACKTEST.pooled }) {
+  const max = 0.5;
+  const ink = { good: 'var(--viz-pos)', ref: 'var(--viz-seq-4)', weak: 'var(--text-faint)' };
+  return (
+    <div className="flex flex-col gap-3 py-1">
+      {rows.map((r) => (
+        <div key={r.label} className="flex items-center gap-3">
+          <div className="w-[186px] shrink-0 text-[11.5px]" style={{ color: 'var(--text)' }}>{r.label}</div>
+          <div className="relative h-[22px] flex-1 rounded-[4px]" style={{ background: 'var(--bg-panel-2)' }}>
+            <div
+              className="absolute inset-y-0 left-0 rounded-[4px]"
+              style={{ width: `${Math.max(r.value / max, 0.004) * 100}%`, background: ink[r.tone] }}
+            />
+          </div>
+          <div className="w-[54px] shrink-0 text-right text-[12px] tabular-nums" style={{ color: 'var(--text-hi)' }}>
+            {(r.value * 100).toFixed(1)}%
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function R2Compare({ adjusted, raw }: { adjusted: number; raw: number }) {
   const rows = [
