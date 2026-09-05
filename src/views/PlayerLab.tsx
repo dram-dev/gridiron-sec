@@ -6,6 +6,7 @@ import {
   Table, Td, Th, TeamMark,
 } from '../components/ui';
 import { ALL_PLAYERS, PLAYER_BY_ID, POSITION_SIDE } from '../data/players';
+import { MEASURED_PLAYERS } from '../data/measuredPlayers';
 import { TEAMS, TEAM_BY_ID } from '../data/teams';
 import type { Player, Position } from '../data/types';
 import { projectPlayerGame, projectPlayerSeason } from '../engine/players';
@@ -230,7 +231,19 @@ function PlayerDetail({ player }: { player: Player }) {
     return { best: sorted[0], worst: sorted[sorted.length - 1] };
   }, [perGame]);
 
+  // The scale has to contain the schedule it is drawing. A fixed 0.8-1.2 window
+  // works until a team opens against an FCS opponent, and then the bar runs off
+  // its own track and takes its label with it.
+  const matchupDomain = useMemo<[number, number]>(() => {
+    const values = perGame.map((g) => g.proj.matchup);
+    const lo = Math.min(0.8, ...values);
+    const hi = Math.max(1.2, ...values);
+    const pad = (hi - lo) * 0.04;
+    return [lo - pad, hi + pad];
+  }, [perGame]);
+
   const prod = player.production2025;
+  const measured = MEASURED_PLAYERS[player.id];
 
   return (
     <Panel className="overflow-hidden">
@@ -363,6 +376,7 @@ function PlayerDetail({ player }: { player: Player }) {
                 ['Carries', prod.carries],
                 ['Rush yards', prod.rushYds],
                 ['Rush TD', prod.rushTd],
+                ['Targets', prod.targets],
                 ['Receptions', prod.receptions],
                 ['Rec yards', prod.recYds],
                 ['Rec TD', prod.recTd],
@@ -371,6 +385,11 @@ function PlayerDetail({ player }: { player: Player }) {
                 ['Sacks', prod.sacks],
                 ['Pass breakups', prod.passBreakups],
                 ['Takeaways', prod.takeaways],
+                ['FG made', prod.fgMade],
+                ['FG attempts', prod.fgAttempts],
+                ['Longest FG', prod.fgLong],
+                ['Punts', prod.punts],
+                ['Punt average', prod.puntAvg],
               ] as [string, number | undefined][])
                 .filter(([, v]) => v !== undefined)
                 .map(([k, v]) => (
@@ -382,7 +401,21 @@ function PlayerDetail({ player }: { player: Player }) {
             </div>
           ) : (
             <p className="mt-2 text-[12px]" style={{ color: 'var(--text-low)' }}>
-              No prior-season production is tracked for this player — either a newcomer or a role that does not produce countable statistics.
+              {player.position === 'OT' || player.position === 'IOL'
+                ? 'Play-by-play never names offensive linemen, so no individual production line exists for this player. This line\u2019s work is measured collectively, in the team\u2019s line yards and sack rate allowed.'
+                : 'No prior-season production is tracked for this player — either a newcomer, or a role the play-by-play only records when something happens.'}
+            </p>
+          )}
+          {measured && (
+            <p className="mt-2 text-[11px]" style={{ color: 'var(--text-low)' }}>
+              Counted off {measured.plays.toLocaleString()} plays of 2025 play-by-play
+              {measured.school2025 && !measured.school2025.startsWith(team.school)
+                ? ` at ${measured.school2025}`
+                : ''}
+              {measured.usage.carryShare != null && `, ${pct(measured.usage.carryShare)} of the team's carries`}
+              {measured.usage.targetShare != null && `, ${pct(measured.usage.targetShare)} of its targets`}
+              {measured.usage.passAttemptShare != null && `, ${pct(measured.usage.passAttemptShare)} of its pass attempts`}
+              .
             </p>
           )}
 
@@ -393,8 +426,8 @@ function PlayerDetail({ player }: { player: Player }) {
             </p>
             <div className="mt-2.5">
               <BarList
-                min={0.8}
-                max={1.2}
+                min={matchupDomain[0]}
+                max={matchupDomain[1]}
                 height={16}
                 labelWidth={72}
                 valueWidth={48}

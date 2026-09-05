@@ -73,17 +73,40 @@ appropriate side of the ball — the arithmetic is visible and checkable in the 
 Every record carries a `measured`, `verified` or `modeled` flag, surfaced in the UI wherever it
 appears.
 
-- **Measured** — per-play efficiency, 2025 results, returning production and recruiting
-  composites. Counted off 165,849 plays of 2025 play-by-play across 956 games and 236 teams by
-  `scripts/etl`, then opponent-adjusted. Nothing in this tier was typed by hand; the whole layer
-  lives in the generated `src/data/measured.ts` and regenerates with `npm run etl`.
+- **Measured** — per-play efficiency, 2025 results, returning production, recruiting composites,
+  and every rostered player's 2025 production. Counted off 165,849 plays of 2025 play-by-play
+  across 956 games and 236 teams by `scripts/etl`, then opponent-adjusted. Nothing in this tier
+  was typed by hand; it lives in the generated `src/data/measured.ts` and
+  `src/data/measuredPlayers.ts`, and regenerates with `npm run etl`.
 - **Verified** — the 2026 schedule (all 72 conference games reconciled across both
   participants' published schedules), the Preseason Coaches All-SEC teams, announced Week 1
   starting quarterbacks, reported portal additions, and the coaching carousel. Sourced from
   public reporting while the dataset was compiled; every source is listed in the Methodology view.
-- **Modeled** — usage shares, player grades, PAR values, coach tendency indices and all seven
-  rating components. Analyst estimates calibrated against the measured and verified layers.
-  Model inputs, not measurements.
+- **Modeled** — forward-looking usage shares, player grades, PAR values, coach tendency indices
+  and all seven rating components. Analyst estimates calibrated against the measured and verified
+  layers. Model inputs, not measurements.
+
+### The player layer
+
+140 of 191 rostered players are matched to the play-by-play, with their carries, targets,
+dropbacks, the EPA on those plays and their share of the team's usage all counted. Transfers
+carry the production they earned at the school they left.
+
+The 51 misses are not a bug. Play-by-play never names an offensive linemen, so no lineman
+carries an individual production line — a line's work is measured collectively, in its team's
+line yards and sack rate allowed. A defender appears only on snaps where they recorded
+something.
+
+Matching requires the name *and* the school to agree. That costs a few legitimate matches and
+prevents a much worse failure: six players on this roster share a name with someone else in the
+sport, and a name-only match handed them the wrong man's season.
+
+Two engine changes came out of feeding it real rates. Per-player rates are now regressed toward
+the league mean in proportion to the sample behind them — a back who averaged 6.5 yards a carry
+over 256 carries will not do it again, and replaying last season's rate overshoots every leader.
+And starters now come off the field in projected blowouts, which the model previously handled
+backwards: a blowout raised the run rate and put every extra carry on a starter who would
+already be in a baseball cap on the sideline.
 
 ### Rebuilding the measured layer
 

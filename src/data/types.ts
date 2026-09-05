@@ -74,8 +74,17 @@ export interface EfficiencyProfile {
   lineYardsAllowed: number;
   sackRate: number;
   sackRateAllowed: number;
-  /** Neutral-situation pass rate and pass rate over expected. */
+  /**
+   * Neutral-situation pass rate: early downs, game within one score. This is
+   * the team-identity number, the one that pairs with `proe`.
+   */
   passRate: number;
+  /**
+   * Share of all scrimmage plays that were dropbacks, sacks included. Always
+   * higher than `passRate`, because teams throw more on late downs and when
+   * trailing. This is the one to split a projected snap count with.
+   */
+  dropbackRate: number;
   proe: number;
   playsPerGame: number;
   secondsPerPlay: number;
@@ -285,6 +294,7 @@ export interface PlayerProduction {
   rushYds?: number;
   rushTd?: number;
   carries?: number;
+  targets?: number;
   receptions?: number;
   recYds?: number;
   recTd?: number;
@@ -293,6 +303,13 @@ export interface PlayerProduction {
   sacks?: number;
   passBreakups?: number;
   takeaways?: number;
+  /** Kicking and punting, kept separate from passing attempts on purpose:
+   *  a fake field goal would otherwise overwrite a quarterback's season. */
+  fgAttempts?: number;
+  fgMade?: number;
+  fgLong?: number;
+  punts?: number;
+  puntAvg?: number;
 }
 
 export interface PlayerRates {
@@ -325,6 +342,17 @@ export interface Player {
   usage: PlayerUsage;
   production2025?: PlayerProduction;
   rates: PlayerRates;
+  /**
+   * Plays this player was directly involved in during the prior season, counted
+   * off the play-by-play. Absent when the play-by-play cannot see the player at
+   * all — offensive linemen are never named in it, and a defender only appears
+   * on the snaps where they recorded something. It is the sample size behind
+   * `production2025` and the measured entries in `rates`.
+   */
+  measuredPlays?: number;
+  /** Share of the prior season's team usage, measured. Backward-looking — the
+   *  forward-looking projection lives in `usage`. */
+  usage2025?: Partial<PlayerUsage>;
   /** 0–100 projection grade for 2026. */
   grade: number;
   /**

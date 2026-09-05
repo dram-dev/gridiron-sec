@@ -8,6 +8,9 @@
 
 import { describe, expect, it } from 'vitest';
 import { TEAMS } from '../../data/teams';
+import { ALL_PLAYERS, PLAYER_BY_ID } from '../../data/players';
+import { MEASURED_PLAYERS } from '../../data/measuredPlayers';
+import { stabilise, starterWorkload } from '../players';
 import {
   MEASURED_EFFICIENCY, MEASURED_META, MEASURED_RECORD,
   MEASURED_RETURNING, MEASURED_TALENT,
@@ -118,5 +121,96 @@ describe('the measured layer', () => {
     );
     const threeDecimals = values.filter((v) => Math.abs(v * 100 - Math.round(v * 100)) > 1e-9);
     expect(threeDecimals.length / values.length).toBeGreaterThan(0.4);
+  });
+});
+
+describe('the measured player layer', () => {
+  it('reaches the players the play-by-play can actually see', () => {
+    const seen = (pos: string) => ALL_PLAYERS.filter((p) => p.position === pos);
+    const hit = (pos: string) => seen(pos).filter((p) => MEASURED_PLAYERS[p.id]).length;
+
+    // Ball-carriers are named on every snap, so coverage should be near total.
+    for (const pos of ['QB', 'RB', 'WR', 'TE', 'K'] as const) {
+      expect(hit(pos) / seen(pos).length, pos).toBeGreaterThan(0.85);
+    }
+    // Linemen are never named in play-by-play. Claiming otherwise would mean
+    // the matcher had latched onto someone else with the same name.
+    for (const pos of ['OT', 'IOL'] as const) {
+      expect(hit(pos) / seen(pos).length, pos).toBeLessThan(0.2);
+    }
+  });
+
+  it('lands measured production on the roster itself', () => {
+    for (const [id, m] of Object.entries(MEASURED_PLAYERS)) {
+      const player = PLAYER_BY_ID[id];
+      expect(player, id).toBeDefined();
+      expect(player.measuredPlays, id).toBe(m.plays);
+      expect(player.provenance, id).toBe('measured');
+      for (const [field, value] of Object.entries(m.production)) {
+        expect(player.production2025?.[field as keyof typeof m.production], `${id}.${field}`).toBe(value);
+      }
+    }
+  });
+
+  it('keeps every measured line internally consistent', () => {
+    for (const [id, m] of Object.entries(MEASURED_PLAYERS)) {
+      const p = m.production;
+      if (p.completions != null && p.attempts != null) {
+        expect(p.completions, id).toBeLessThanOrEqual(p.attempts);
+      }
+      if (p.receptions != null && p.targets != null) {
+        expect(p.receptions, id).toBeLessThanOrEqual(p.targets);
+      }
+      if (p.carries != null && p.rushYds != null && m.rates.ypc != null) {
+        expect(m.rates.ypc, id).toBeCloseTo(p.rushYds / p.carries, 1);
+      }
+      expect(p.games, id).toBeGreaterThan(0);
+      expect(p.games, id).toBeLessThanOrEqual(16);
+      for (const share of Object.values(m.usage)) {
+        expect(share).toBeGreaterThanOrEqual(0);
+        expect(share).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it('does not credit a transfer to the wrong school', () => {
+    for (const p of ALL_PLAYERS) {
+      const m = MEASURED_PLAYERS[p.id];
+      if (!m) continue;
+      const expected = p.origin === 'transfer' && p.from ? p.from : TEAMS.find((t) => t.id === p.teamId)!.school;
+      expect(m.school2025.toLowerCase(), `${p.name} (${p.origin})`)
+        .toContain(expected.toLowerCase());
+    }
+  });
+});
+
+describe('projecting from measured rates', () => {
+  it('pulls an extreme rate toward the mean, in proportion to its evidence', () => {
+    const prior = { mean: 4.6, weight: 190 };
+    const big = stabilise(6.5, 256, prior);
+    const small = stabilise(6.5, 20, prior);
+
+    // Both regress; the one with less evidence regresses further.
+    expect(big).toBeLessThan(6.5);
+    expect(small).toBeLessThan(big);
+    expect(small).toBeGreaterThan(prior.mean);
+    // A player with no measured sample is simply the league.
+    expect(stabilise(undefined, undefined, prior)).toBe(prior.mean);
+    expect(stabilise(6.5, 0, prior)).toBe(prior.mean);
+    // Regression cuts both ways.
+    expect(stabilise(2.9, 120, prior)).toBeGreaterThan(2.9);
+  });
+
+  it('sits starters down as a game gets out of hand', () => {
+    expect(starterWorkload(0)).toBe(1);
+    expect(starterWorkload(14)).toBe(1);
+    expect(starterWorkload(35)).toBeLessThan(1);
+    // Symmetric: a team down forty empties the bench too.
+    expect(starterWorkload(-45)).toBe(starterWorkload(45));
+    // Bounded — the first half still happened.
+    for (const m of [-90, -50, 0, 50, 90]) {
+      expect(starterWorkload(m)).toBeGreaterThanOrEqual(0.55);
+      expect(starterWorkload(m)).toBeLessThanOrEqual(1);
+    }
   });
 });

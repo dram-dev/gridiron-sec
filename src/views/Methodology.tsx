@@ -224,7 +224,8 @@ export function Methodology() {
               <span className="text-[12.5px] font-semibold" style={{ color: 'var(--text-hi)' }}>Measured</span>
             </div>
             <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--text)' }}>
-              Per-play efficiency, 2025 results, returning production and recruiting composites are counted directly off{' '}
+              Per-play efficiency, 2025 results, returning production, recruiting composites and every rostered
+              player’s 2025 production are counted directly off{' '}
               {MEASURED_META.plays.toLocaleString()} plays of {MEASURED_META.priorSeason} play-by-play, across{' '}
               {MEASURED_META.games.toLocaleString()} games and {MEASURED_META.teams} teams. Quality metrics are
               opponent-adjusted so an SEC schedule stops being counted as a weakness. Nothing in this tier was typed by
@@ -248,8 +249,8 @@ export function Methodology() {
               <span className="text-[12.5px] font-semibold" style={{ color: 'var(--text-hi)' }}>Modeled</span>
             </div>
             <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--text)' }}>
-              Usage shares, player grades, PAR values, coach tendency indices and all seven rating components are analyst
-              estimates calibrated against the measured and verified layers. They are model inputs, not measurements, and
+              Forward-looking usage shares, player grades, PAR values, coach tendency indices and all seven rating
+              components are analyst estimates calibrated against the measured and verified layers. They are model inputs, not measurements, and
               they are labelled as such everywhere they appear.
             </p>
           </div>
@@ -295,7 +296,8 @@ export function Methodology() {
             {[
               ['It is a snapshot, not a feed.', 'The dataset was compiled on 5 September 2026 and does not update for results, injuries or depth-chart changes. The Scenario Studio exists so you can impose those yourself.'],
               ['Roster coverage is curated, not exhaustive.', `${ALL_PLAYERS.length} players across sixteen teams — the contributors who move a projection, not every scholarship athlete. A deep bench injury will not show up because that player is not tracked.`],
-              ['Player grades are estimates.', 'Team efficiency is counted off the 2025 play-by-play and opponent-adjusted. The per-player grades layered on top of it are not measured — they are analyst judgements, and they drive roster strength, the quarterback term and every PAR figure.'],
+              ['Grades and PAR are estimates.', 'Team efficiency and player production are both counted off the 2025 play-by-play. The 2026 grade layered on top of them is an analyst judgement, and it is what drives roster strength, the quarterback term and every PAR figure.'],
+              ['Offensive linemen cannot be measured individually.', 'Play-by-play never names them, so no lineman carries a measured production line. A line shows up collectively, in its team\u2019s line yards and sack rate allowed.'],
               ['The error bars are wide, and they should be.', 'A single-game σ of 15.8 points means a 10-point favourite loses about 26% of the time. Any single projection is a distribution, and the interface shows the distribution wherever it can.'],
               ['Coaching effects are the softest layer.', 'Tendencies travel between jobs far better than results do, but a first-year head coach with no head-coaching record — Kentucky’s, in this dataset — is genuinely close to unforecastable. That team carries the widest interval in the league by design.'],
               ['The playoff number is a heuristic.', 'Everything else derives from the ratings. The committee does not, so that one figure is an explicit approximation and is labelled as one wherever it appears.'],

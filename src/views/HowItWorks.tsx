@@ -7,6 +7,8 @@ import { GAME_SIGMA, LEAGUE_PPG, TEAM_SIGMA } from '../engine/constants';
 import { normalCdf } from '../engine/rng';
 import { externalAgreement, spearmanVsSpPlus } from '../engine/model';
 import { MEASURED_META } from '../data/measured';
+import { MEASURED_PLAYERS } from '../data/measuredPlayers';
+import { ALL_PLAYERS } from '../data/players';
 import { CATEGORICAL, DIVERGING, SEQUENTIAL, pct, signed } from '../lib/viz';
 import { useStore } from '../state/store';
 
@@ -82,6 +84,11 @@ export function HowItWorks() {
   const sdIndependent = sd(independent);
   const sdModel = sd(outlook.regularWinDistribution);
   const spearman = useMemo(() => spearmanVsSpPlus(externalAgreement()), []);
+  const totalPlayers = ALL_PLAYERS.length;
+  const measuredPlayers = useMemo(
+    () => ALL_PLAYERS.filter((p) => MEASURED_PLAYERS[p.id]).length,
+    [],
+  );
 
   return (
     <div className="hiw">
@@ -227,12 +234,32 @@ export function HowItWorks() {
                 teams. So no plays are discarded here. That result is reproducible with{' '}
                 <code className="hiw-code">npm run etl:validate</code>.
               </p>
+              <p className="hiw-sub">The same treatment, one level down</p>
+              <p>
+                Players are counted the same way. Every carry, target and dropback a rostered
+                player took in {MEASURED_META.priorSeason} is read off the same file, along with the
+                EPA on those plays and the share of their team's usage they carried — including for
+                transfers, who bring the production they earned at the school they left.
+              </p>
+              <p>
+                It reaches <Num>{measuredPlayers}</Num> of{' '}
+                <Num>{totalPlayers}</Num> rostered players, and the gap is not an oversight: play-by-play
+                never names an offensive lineman. No lineman here carries a measured production
+                line, and nothing pretends otherwise — a line's work shows up in its team's line
+                yards and sack rate instead. A defender appears only on the snaps where they
+                recorded something.
+              </p>
+              <p>
+                Matching is deliberately strict. A player is only credited when the name and the
+                school both agree, which costs a handful of legitimate matches and prevents a much
+                worse failure: six players on this roster share a name with someone else in the
+                sport, and a looser rule quietly handed them the wrong man's season.
+              </p>
               <p className="hiw-sub">What is still not measured</p>
               <p>
-                Team efficiency, {MEASURED_META.priorSeason} results, returning production and
-                recruiting composites are counted. Individual player grades are not — those remain
-                analyst estimates, and they are labelled as such wherever they appear. It is the
-                softest input left in the system, and{' '}
+                Grades, PAR and forward-looking usage shares are still analyst estimates for every
+                player. They are what the model actually consumes, so they remain the softest input
+                in the system, and{' '}
                 <a className="hiw-link" href="#next">section 12</a> is blunt about what that costs.
               </p>
             </Prose>
@@ -653,11 +680,11 @@ export function HowItWorks() {
               </p>
               <ol className="hiw-numbered">
                 <li>
-                  <strong>The player layer is graded, not measured.</strong> Team observations are
-                  counted off 165,849 real plays. Individual player grades are not — they are
-                  analyst estimates, and they feed roster strength, the quarterback term and every
-                  PAR figure. This is now the softest input in the system, and every affected
-                  record is flagged in the interface.
+                  <strong>Grades are judgements sitting on measurements.</strong> What each player
+                  did in 2025 is counted. What they are worth in 2026 — the grade, and the PAR that
+                  follows from it — is an analyst estimate, and that is what feeds roster strength
+                  and the quarterback term. This is the softest input left in the system, and every
+                  affected record is flagged in the interface.
                 </li>
                 <li>
                   <strong>The playoff figure is a heuristic.</strong> Every other number derives
@@ -812,7 +839,7 @@ function ComponentList() {
 const LIMITS: [string, string][] = [
   ['The error bars are wide, and they should be', `A single-game spread of ${GAME_SIGMA} points is not hedging. It is the sport. Any one projection is a distribution, and the app shows the distribution wherever it can.`],
   ['It is a snapshot, not a feed', 'Compiled once. It does not update for results, injuries or depth-chart changes.'],
-  ['Player grades are still estimates', 'Team efficiency is measured off the play-by-play; the individual grades layered on top of it is not.'],
+  ['Grades and PAR are still estimates', 'Team efficiency and player production are both counted off the play-by-play. The 2026 grade layered on top of them is a judgement, and it is what the model actually consumes.'],
   ['The playoff number is a heuristic', 'Everything else derives from the ratings. The selection committee does not, so that one figure is an explicit approximation.'],
   ['Coaching is the softest layer', 'Tendencies travel between jobs better than results do — but a first-time head coach with no record is close to unforecastable, and carries the widest interval in the league by design.'],
   ['This is not betting advice', 'The model has no information the market does not, and it is not calibrated against closing lines.'],

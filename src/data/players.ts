@@ -2,6 +2,7 @@ import type {
   ClassYear, Player, PlayerOrigin, PlayerProduction, PlayerRates,
   PlayerUsage, Position, Provenance, TeamId,
 } from './types';
+import { MEASURED_PLAYERS } from './measuredPlayers';
 
 /* ============================================================================
  * Rosters — the player layer.
@@ -10,8 +11,13 @@ import type {
  * dataset was compiled: the 2026 Preseason Coaches All-SEC teams (all three),
  * announced Week 1 starting quarterbacks, and reported portal additions.
  * `modeled` records are supporting contributors carried from prior-season
- * production. Usage shares, efficiency rates, grades and PAR are analyst
- * estimates throughout — they are the model's inputs, not observations.
+ * production. `measured` records are those the 2025 play-by-play could see: the
+ * production line and the rates derived from it are counted, not estimated.
+ *
+ * Grades, PAR and forward-looking usage shares remain analyst estimates for
+ * every player — they are the model's inputs, not observations. Offensive
+ * linemen are never named in play-by-play, so no lineman carries a measured
+ * production line; their work shows up in team line yards and sack rate.
  *
  * PAR (Points Above Replacement) is the number of points of team rating lost
  * across a full season if the player is replaced by the next man up. It is the
@@ -41,9 +47,18 @@ interface Seed {
 const slug = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+/**
+ * Build a roster, letting measured play-by-play override the authored seed
+ * wherever it reaches. Production and the rates derived from it come from the
+ * count when there is one; usage shares stay authored, because `usage` is a
+ * projection of next season and last season's share is not that.
+ */
 function build(teamId: TeamId, seeds: Seed[]): Player[] {
-  return seeds.map((d) => ({
-    id: `${teamId.toLowerCase()}-${slug(d.n)}`,
+  return seeds.map((d) => {
+    const id = `${teamId.toLowerCase()}-${slug(d.n)}`;
+    const m = MEASURED_PLAYERS[id];
+    return {
+    id,
     name: d.n,
     teamId,
     position: d.p,
@@ -53,16 +68,21 @@ function build(teamId: TeamId, seeds: Seed[]): Player[] {
     from: d.f,
     recruitStars: d.s ?? null,
     usage: (d.u ?? { snapShare: 0.6 }) as PlayerUsage,
-    production2025: d.pr as PlayerProduction | undefined,
-    rates: (d.r ?? {}) as PlayerRates,
+    production2025: (m ? { ...d.pr, ...m.production } : d.pr) as PlayerProduction | undefined,
+    // Authored rates the play-by-play cannot see — pressure rate, coverage,
+    // missed tackles — survive; everything it can count is overwritten.
+    rates: { ...(d.r ?? {}), ...(m?.rates ?? {}) } as PlayerRates,
+    measuredPlays: m?.plays,
+    usage2025: m?.usage,
     grade: d.g,
     par: d.par,
     breakoutOdds: d.bo ?? 0.2,
     durabilityRisk: d.dr ?? 0.12,
     accolades: d.a ?? [],
     note: d.note,
-    provenance: (d.v ?? 'modeled') as Provenance,
-  }));
+    provenance: (m ? 'measured' : (d.v ?? 'modeled')) as Provenance,
+    };
+  });
 }
 
 /* -------------------------------------------------------------------------- */

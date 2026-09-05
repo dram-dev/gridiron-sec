@@ -276,9 +276,10 @@ for (const [game, teams] of games) {
     const u = units.get(key(game, team));
     if (!u) continue;
     let s = seasonTotals.get(team);
-    if (!s) seasonTotals.set(team, (s = { games: 0, allPlays: 0, neutral: 0, neutralPass: 0, passOe: 0, passOeN: 0, fourthGo: 0, fourthDecisions: 0, tempo: 0, tempoN: 0, st: 0, giveaways: 0, takeaways: 0, driveStart: 0, driveStartN: 0 }));
+    if (!s) seasonTotals.set(team, (s = { games: 0, allPlays: 0, dropbacks: 0, neutral: 0, neutralPass: 0, passOe: 0, passOeN: 0, fourthGo: 0, fourthDecisions: 0, tempo: 0, tempoN: 0, st: 0, giveaways: 0, takeaways: 0, driveStart: 0, driveStartN: 0 }));
     s.games += 1;
     s.allPlays += u.allPlays;
+    s.dropbacks += u.dropbacks;
     s.neutral += u.neutral;
     s.neutralPass += u.neutralPass;
     s.passOe += u.passOe;
@@ -360,6 +361,7 @@ for (const [espnId, id] of Object.entries(SEC_TEAM_IDS)) {
     sackRate: pick(fits.sackRate, 'defense', t, 3),
     sackRateAllowed: pick(fits.sackRate, 'offense', t, 3),
     passRate: r2(s.neutralPass / s.neutral, 3),
+    dropbackRate: r2(s.dropbacks / s.allPlays, 3),
     proe: r2(s.passOe / s.passOeN / 100, 3),
     playsPerGame: r2(s.allPlays / s.games, 1),
     secondsPerPlay: r2(s.tempo / s.tempoN, 1),

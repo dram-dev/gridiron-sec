@@ -99,6 +99,62 @@ export function scriptedPassRate(base: number, margin: number): number {
   return Math.max(0.28, Math.min(0.72, base - margin * 0.006));
 }
 
+/**
+ * How much of a starter's usual workload survives the projected game script.
+ *
+ * Nobody's feature back takes thirty carries in a fifty-point win — he takes
+ * twelve and watches the fourth quarter in a baseball cap. Left uncorrected the
+ * projection does the opposite of what actually happens: a blowout pushes the
+ * run rate up, and every extra carry lands on a starter who would already be
+ * out of the game.
+ *
+ * So workload holds flat while the game is in doubt, then falls away beyond
+ * about three scores, in either direction — a team down forty empties the bench
+ * as surely as one up forty. The floor is deliberately well above zero, since
+ * the first half still happened.
+ */
+export function starterWorkload(margin: number): number {
+  const blowout = (Math.abs(margin) - 21) / 28;
+  return 1 - 0.45 * Math.min(1, Math.max(0, blowout));
+}
+
+/**
+ * Regress a measured rate toward the league mean for its stat, weighted by the
+ * sample it was measured over.
+ *
+ * This matters more than it looks. Ahmad Hardy ran for 6.5 yards a carry in
+ * 2025 — really did, 256 carries of it. He will not do it again, and neither
+ * will anyone else at the top of a single-season leaderboard: extreme rates are
+ * part skill and part the season going well, and only the skill carries over.
+ * Replaying last season's rate straight into next season's projection
+ * overshoots every leader and undershoots every unlucky starter.
+ *
+ * So each rate is a weighted average of what the player did and what the league
+ * does, with the player's own evidence weighted by how much of it there is. The
+ * weights below are the sample at which a stat is worth as much as the prior —
+ * yards per carry stabilises slowly, yards per target faster.
+ */
+interface RatePrior {
+  mean: number;
+  /** Sample size at which the player's own rate carries half the weight. */
+  weight: number;
+}
+
+const RATE_PRIORS = {
+  ypc: { mean: 4.6, weight: 190 },
+  ypa: { mean: 7.4, weight: 260 },
+  ypt: { mean: 8.2, weight: 90 },
+} satisfies Record<string, RatePrior>;
+
+export function stabilise(
+  rate: number | undefined,
+  sample: number | undefined,
+  prior: RatePrior,
+): number {
+  if (rate == null || !sample) return prior.mean;
+  return (rate * sample + prior.mean * prior.weight) / (sample + prior.weight);
+}
+
 export function projectPlayerGame(
   player: Player,
   projection: GameProjection,
@@ -113,23 +169,27 @@ export function projectPlayerGame(
   // Higher-scoring games run slightly more offensive snaps for both sides.
   const flow = 0.75 + 0.25 * (projection.total / (2 * LEAGUE_PPG));
   const teamPlays = self.pace * flow;
-  const passRate = scriptedPassRate(team.efficiency.passRate, margin);
+  // The split needs every dropback, not just the neutral-script ones.
+  const passRate = scriptedPassRate(team.efficiency.dropbackRate, margin);
 
   const dropbacks = teamPlays * passRate;
   const rushes = teamPlays * (1 - passRate);
+  // Shares are for a game the starters finish; this is the discount when the
+  // projection says they will not have to.
+  const workload = starterWorkload(margin);
   const u = player.usage;
   const r = player.rates;
   const line: StatLine = {};
   const stats: ProjectedStat[] = [];
 
   if (player.position === 'QB') {
-    const att = dropbacks * (u.passAttemptShare ?? u.snapShare) * 0.93;
-    const ypa = (r.ypa ?? 7.4) * matchup;
+    const att = dropbacks * (u.passAttemptShare ?? u.snapShare) * 0.93 * workload;
+    const ypa = stabilise(r.ypa, player.production2025?.attempts, RATE_PRIORS.ypa) * matchup;
     const passYards = att * ypa;
     const compPct = Math.max(0.5, Math.min(0.73, 0.55 + (player.grade - 78) * 0.004));
     const passTd = (passYards / 265) * (0.95 + (player.grade - 78) * 0.006);
     const ints = att * (0.028 - (player.grade - 78) * 0.00035);
-    const carries = rushes * 0.14 * (player.grade > 82 ? 1.15 : 0.9);
+    const carries = rushes * 0.14 * (player.grade > 82 ? 1.15 : 0.9) * workload;
     const rushYards = carries * 4.1 * matchup;
 
     Object.assign(line, {
@@ -151,10 +211,10 @@ export function projectPlayerGame(
       stat('interceptions', 'Interceptions', Math.max(0.15, ints), 0.6, 1),
     );
   } else if (player.position === 'RB') {
-    const carries = rushes * (u.carryShare ?? 0.4);
-    const ypc = (r.ypc ?? 4.6) * matchup;
+    const carries = rushes * (u.carryShare ?? 0.4) * workload;
+    const ypc = stabilise(r.ypc, player.production2025?.carries, RATE_PRIORS.ypc) * matchup;
     const rushYards = carries * ypc;
-    const targets = dropbacks * (u.targetShare ?? 0.06);
+    const targets = dropbacks * (u.targetShare ?? 0.06) * workload;
     const recYards = targets * 6.6 * matchup;
 
     Object.assign(line, {
@@ -175,8 +235,8 @@ export function projectPlayerGame(
       stat('scrimmageYards', 'Scrimmage yards', rushYards + recYards, 0.3),
     );
   } else if (player.position === 'WR' || player.position === 'TE') {
-    const targets = dropbacks * (u.targetShare ?? 0.12);
-    const ypt = (r.ypt ?? 8.2) * matchup;
+    const targets = dropbacks * (u.targetShare ?? 0.12) * workload;
+    const ypt = stabilise(r.ypt, player.production2025?.targets, RATE_PRIORS.ypt) * matchup;
     const recYards = targets * ypt;
     const catchRate = player.position === 'TE' ? 0.72 : 0.64;
 
