@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="Gridiron — a 2026 college football forecasting model covering the SEC and the Big Ten, with team, player and coach analytics, head-to-head simulation and scenario planning." />
+    <title>Gridiron — SEC and Big Ten, 2026</title>
+    <!-- Display face for the "How this works" page only. Everything else uses
+         the system stack, which needs no network round trip. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap"
+    />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2317b083'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='20' font-weight='800' text-anchor='middle' fill='%2303150f'%3EG%3C/text%3E%3C/svg%3E" />
+    <script type="module" crossorigin src="./assets/index-b-4d5UQu.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-2FMcOw1U.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Resolve the theme before first paint so there is no flash, and so an
+      // explicit stamp from an embedding host wins over our own default.
+      (function () {
+        var root = document.documentElement;
+        var stamped = root.getAttribute('data-theme');
+        var stored = null;
+        try { stored = localStorage.getItem('gridiron-theme'); } catch (e) { /* private mode */ }
+        var theme =
+          stored === 'light' || stored === 'dark' ? stored
+          : stamped === 'light' || stamped === 'dark' ? stamped
+          : window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        root.setAttribute('data-theme', theme);
+      })();
+    </script>
+  </body>
+</html>
