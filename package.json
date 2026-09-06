@@ -12,7 +12,7 @@
     "typecheck": "tsc -b --noEmit",
     "build:artifact": "BUILD_TARGET=artifact vite build",
     "etl:fetch": "node scripts/etl/fetch.mjs",
-    "etl": "node --max-old-space-size=8000 scripts/etl/build.mjs && npm run etl:players",
+    "etl": "node --max-old-space-size=8000 scripts/etl/build.mjs && npm run etl:schedule && npm run etl:rosters && npm run etl:players",
     "etl:validate": "node --max-old-space-size=8000 scripts/etl/validate.mjs",
     "etl:players": "vite-node scripts/etl/players.mjs",
     "etl:backtest": "node --max-old-space-size=8000 scripts/etl/backtest.mjs",

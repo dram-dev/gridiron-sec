@@ -22,6 +22,7 @@
 import { asyncBufferFromFile, parquetReadObjects } from 'hyparquet';
 import { compressors } from 'hyparquet-compressors';
 import { fitEffects } from './adjust.mjs';
+import { TEAM_IDS } from './sources.mjs';
 
 const DATA = '.data';
 const SEASONS = [2021, 2022, 2023, 2024, 2025];
@@ -359,10 +360,15 @@ if (pooled.length) {
   console.log(`  home field       ${full.intercept.toFixed(2)}`);
   for (const f of FEATURES) console.log(`  ${f.padEnd(16)} ${full.weights[f].toFixed(2)}`);
 
-  // The app standardises inside the sixteen SEC teams; this fit standardises
-  // nationally. A coefficient cannot cross between the two without the ratio of
-  // those spreads, so it is measured here rather than assumed.
-  const SEC_IDS = new Set(['333','8','2','57','61','96','99','145','344','142','201','2579','2633','251','245','238']);
+  // The app standardises inside its own pool; this fit standardises nationally.
+  // A coefficient cannot cross between the two without the ratio of those
+  // spreads, so it is measured here rather than assumed.
+  //
+  // The pool is read from the manifest rather than written out here. When the
+  // Big Ten was added the pool doubled, and a ratio still measured against the
+  // sixteen would have gone on converting into units the model had stopped
+  // using — silently, and in every coefficient at once.
+  const POOL_IDS = new Set(Object.keys(TEAM_IDS));
   const sd = (xs) => {
     const v = xs.filter((x) => x != null && Number.isFinite(x));
     if (v.length < 2) return NaN;
@@ -385,13 +391,13 @@ if (pooled.length) {
     }
     for (const f of FEATURES) {
       const nat = sd(rowsY.map((r) => r.raw[f]));
-      const sec = sd(rowsY.filter((r) => SEC_IDS.has(r.id)).map((r) => r.raw[f]));
-      if (Number.isFinite(nat) && Number.isFinite(sec) && nat > 0) ratios[f].push(sec / nat);
+      const pool = sd(rowsY.filter((r) => POOL_IDS.has(r.id)).map((r) => r.raw[f]));
+      if (Number.isFinite(nat) && Number.isFinite(pool) && nat > 0) ratios[f].push(pool / nat);
     }
   }
 
-  console.log('\nSEC SPREAD AS A SHARE OF THE NATIONAL SPREAD, averaged over all seasons');
-  console.log(`  ${'feature'.padEnd(10)} ${'per-season ratios'.padEnd(30)} ${'mean'.padStart(6)} ${'pts / SEC SD'.padStart(13)}`);
+  console.log(`\nPOOL SPREAD AS A SHARE OF THE NATIONAL SPREAD (${POOL_IDS.size} teams), over all seasons`);
+  console.log(`  ${'feature'.padEnd(10)} ${'per-season ratios'.padEnd(30)} ${'mean'.padStart(6)} ${'pts / pool SD'.padStart(14)}`);
   for (const f of FEATURES) {
     const rs = ratios[f];
     const mean = rs.reduce((a, b) => a + b, 0) / rs.length;

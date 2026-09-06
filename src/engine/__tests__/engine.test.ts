@@ -536,8 +536,18 @@ describe('season simulation', () => {
   });
 
   it('changes results when the seed changes', () => {
-    const other = simulateSeason(rateAll(s), { ...s, seed: s.seed + 1 });
-    expect(other.teams.UGA.pChampion).not.toBe(result.teams.UGA.pChampion);
+    // Assert that the seed drives the simulation, not that two particular
+    // draws differ. A probability estimated from 3,000 iterations is a count
+    // over 3,000, and two seeds land on the same count roughly one time in a
+    // hundred — so comparing exactly two of them is a test that fails on its
+    // own terms about as often as a real regression would trip it.
+    const seen = new Set(
+      [0, 1, 2, 3].map((d) => {
+        const alt = { ...s, seed: s.seed + d };
+        return simulateSeason(rateAll(alt), alt).teams.UGA.pChampion;
+      }),
+    );
+    expect(seen.size).toBeGreaterThan(1);
   });
 
   it('honours a forced result', () => {

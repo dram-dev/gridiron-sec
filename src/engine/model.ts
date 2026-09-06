@@ -72,10 +72,23 @@ export interface ModelCoefficients {
  * scripts/etl/backtest.mjs walks 2021-2025, builds each season's projection
  * from the season before it and scores it on games it never saw. Fitting the
  * observable inputs against real margins says, in points per standard deviation
- * of a conference-standardised observation:
+ * of a pool-standardised observation:
  *
- *     unit efficiency   2.5 - 2.9      returning production   ~1.05
- *     recruiting talent ~5.0           home field             3.2
+ *     unit efficiency   3.0 - 3.2      returning production   0.9 - 1.3
+ *     recruiting talent ~5.2           home field             3.2
+ *
+ * Those figures are stated per standard deviation *of the pool the model
+ * standardises over*, and that pool changed when the Big Ten was added: the
+ * same national fit converts into different units across sixteen teams than
+ * across thirty-four. The back-test measures the conversion rather than
+ * assuming it, which is why the numbers above moved without any team playing a
+ * different game. `talentScale` moved with them, 4.5 to 4.7, holding the same
+ * relationship to the measurement it had before.
+ *
+ * The external SP+ check cannot referee a change this size — rank correlation
+ * over the thirteen SEC teams SP+ ranks is flat from 4.3 through 5.2 — so the
+ * back-test is the authority here, and the check is only evidence that nothing
+ * broke.
  *
  * Measured against that, the efficiency and home-field weights this model
  * shipped with were already about right. Talent was not: it carried 0.71 where
@@ -107,7 +120,7 @@ export const DEFAULT_COEFFICIENTS: ModelCoefficients = {
   efficiencyScale: 3.3,
   rosterScale: 3.0,
   continuityScale: 1.0,
-  talentScale: 4.5,
+  talentScale: 4.7,
   portalWeight: 0.62,
   qbScale: 0.096,
   qbReplacementGrade: 70,
