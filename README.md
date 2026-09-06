@@ -1,24 +1,33 @@
-# Gridiron SEC — 2026 forecasting model
+# Gridiron — 2026 forecasting model
 
 **Live: https://dram-dev.github.io/gridiron-sec/**
 
-A forecasting dashboard for the 2026 SEC football season: power ratings decomposed into
-seven interpretable components, drive-level game simulation, player-level projections with
-Points Above Replacement, coaching-tendency profiles, and a scenario studio where changing
-one assumption propagates through every projection in the app.
+A forecasting dashboard for the 2026 college football season across the **SEC and the Big
+Ten** — 34 teams: power ratings decomposed into seven interpretable components, drive-level
+game simulation, player-level projections with Points Above Replacement, coaching-tendency
+profiles, and a scenario studio where changing one assumption propagates through every
+projection in the app.
 
-Built for the SEC's first nine-game conference season — no divisions, three annual opponents
-per team, top two by conference winning percentage meet in Atlanta on 5 December.
+Both conferences play a nine-game slate with no divisions, and each stages its own
+championship game. A standing belongs to a conference, so every ranking, race and title
+race in the app is computed inside one — the pool is never treated as a single table. A
+lens in the sidebar switches between the SEC, the Big Ten and both.
+
+Where the two sit against each other is measured rather than asserted. Fitting scoring
+margins across every FBS game, with home advantage solved alongside team strength, puts the
+SEC **+8.6** points above an average FBS team and the Big Ten **+7.1**, on a home field
+worth **3.9**. Those anchors are the only thing separating the two leagues on an absolute
+scale; nothing inside a conference depends on them.
 
 ## What it does
 
 | View | What it answers |
 |---|---|
-| **Command Center** | Where the sixteen stand, where the model disagrees with the AP poll, the full 120-game slate week by week |
-| **Team Lab** | One team decomposed — rating waterfall, efficiency profile against the conference median, game-by-game win probability, win-total distribution, roster value |
-| **Player Lab** | All 191 tracked players ranked by PAR, with season projections carrying 10th–90th percentile bands and per-week matchup difficulty |
+| **Command Center** | Where each conference stands, the SEC against the Big Ten on one scale, where the model disagrees with the AP poll, and the full 252-game slate week by week |
+| **Team Lab** | One team decomposed — rating waterfall, efficiency profile against its own conference's median, game-by-game win probability, win-total distribution, roster value |
+| **Player Lab** | All 605 tracked players ranked by PAR, with season projections carrying 10th–90th percentile bands and per-week matchup difficulty |
 | **Matchup Simulator** | Any two teams, 30,000 drive-level simulations — margin distribution, most likely final scores, spread and total ladders, key player lines for both sides |
-| **Coach Intelligence** | Tendency profiles that survive roster turnover, career arcs, and the uncertainty premium on six first-year staffs |
+| **Coach Intelligence** | Tendency profiles that survive roster turnover, career arcs, and the uncertainty premium on eight first-year staffs |
 | **[Trajectory](https://dram-dev.github.io/gridiron-sec/#/trajectory)** | The season as a path — win fan charts, the standings race, per-game title leverage, and every team's outcome distribution at once |
 | **[Model Lab](https://dram-dev.github.io/gridiron-sec/#/model)** | The twelve coefficients that *are* the model — move one and the whole league re-derives, scored against rankings it was never fitted to |
 | **[How this works](https://dram-dev.github.io/gridiron-sec/#/how-it-works)** | Long-form explainer — the engine end to end, and the design decisions behind the interface |
@@ -40,7 +49,7 @@ continuity, portal & recruiting, and special teams.
 **No team carries a rating constant.** Each component is *derived* from that team's
 observations — prior-season per-play efficiency, the summed value of the roster on hand,
 returning production, blue-chip ratio, the portal cycle, the coaching record — by twelve
-global coefficients in `engine/model.ts`, applied identically to all sixteen teams. There is
+global coefficients in `engine/model.ts`, applied identically to all 34 teams. There is
 nowhere in the system to write down "Georgia, 26 points"; that number falls out. A test
 asserts no `components` field ever returns to the team data.
 
@@ -114,11 +123,20 @@ the least defensible part of the model and account for about five points of the 
 
 ### The player layer
 
-140 of 191 rostered players are matched to the play-by-play, with their carries, targets,
-dropbacks, the EPA on those plays and their share of the team's usage all counted. Transfers
-carry the production they earned at the school they left.
+The two conferences are built by opposite methods, and both are labelled in the data.
 
-The 51 misses are not a bug. Play-by-play never names an offensive linemen, so no lineman
+The sixteen **SEC** rosters are curated two-deeps — announced starters, portal additions,
+preseason honours — which the play-by-play then overwrites wherever it can reach. 140 of
+those 191 players are matched by name, disambiguated by the school they played for.
+
+The eighteen **Big Ten** rosters are the reverse: every player comes from the published 2025
+roster file, joined to the play-by-play on the source's own athlete id rather than a name, so
+nothing about them was typed. That is why the derived layer misses nobody it can see and the
+authored one still misses fifty of its own. Grade is a positional percentile of measured
+value; PAR is that value less a *measured* replacement level — the rate of everyone who was
+not their team's first choice at the position, which is what "the next man up" actually means.
+
+Across both, 499 of 605 players carry a measured production line. The misses are not a bug. Play-by-play never names an offensive linemen, so no lineman
 carries an individual production line — a line's work is measured collectively, in its team's
 line yards and sack rate allowed. A defender appears only on snaps where they recorded
 something.
@@ -172,9 +190,13 @@ npm run etl            # regenerate src/data/measured.ts
 npm run etl:validate   # re-run the out-of-sample checks below
 ```
 
-Quality metrics are opponent-adjusted because a raw season average would lie about this
-conference: sixteen teams that mostly play each other post depressed offensive numbers and
-flattering defensive ones. Each metric is fit over every FBS game as
+Quality metrics are opponent-adjusted because a raw season average would lie about these
+conferences: teams that mostly play each other post depressed offensive numbers and
+flattering defensive ones. Every FCS opponent is pooled into a single team for the same
+reason — fitted individually on one game each, the ridge pulls them toward the average FBS
+team, quietly scoring a September cupcake as a real opponent and rewarding whichever
+conference schedules more of them. Pooled, they measure 28 points below average, which is
+about right. Each metric is fit over every FBS game as
 `league mean + offence − defence`, solved by ridge-regularised alternating least squares, with
 the ridge weight chosen per metric by five-fold cross-validation on held-out games.
 
